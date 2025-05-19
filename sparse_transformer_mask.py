@@ -219,7 +219,7 @@ def visualize_mask_sample(mask, title, sample_size, colormap, save_path):
         save_path (str): Path to save the visualization
     """
     plt.figure(figsize=(10, 8))
-    plt.imshow(mask[0:sample_size, 0:sample_size], cmap=colormap)
+    plt.imshow(mask[0:sample_size, 0:sample_size], cmap=colormap, vmin=0, vmax=3)
     plt.title(f'{title} ({sample_size}x{sample_size} sample)')
     plt.grid(True)
     
@@ -256,6 +256,91 @@ def convert_to_binary_mask(mask):
     """
     return np.where(mask > 0, 1, 0)
 
+def add_lower_triangle(mask, value=2):
+    """
+    Add lower triangular values to the mask (excluding diagonal).
+    
+    Args:
+        mask (numpy.ndarray): Input mask matrix
+        value (int, optional): Value to set for lower triangular part. Defaults to 3.
+        
+    Returns:
+        numpy.ndarray: Mask with lower triangular values set
+    """
+    mask_copy = mask.copy()
+    size = mask_copy.shape[0]
+    
+    # For each row
+    for i in range(size):
+        # Fill all columns before the diagonal
+        for j in range(i):
+            mask_copy[i, j] = value
+    
+    return mask_copy
+
+def create_normal_mask_step_by_step(size):
+    """
+    Create a normal (full) attention mask step by step.
+    
+    Args:
+        size (int): Size of the square mask matrix
+        
+    Returns:
+        numpy.ndarray: Complete normal attention mask
+    """
+    # Step 1: Create zero mask
+    mask = create_zero_mask(size)
+    
+    # Step 2: Add diagonal values
+    mask = add_diagonal(mask, value=1)
+    
+    # Step 3: Add lower triangular values
+    mask = add_lower_triangle(mask, value=2)
+    
+    return mask
+
+def visualize_mask_comparison(masks, titles, sample_size, colormap, save_path):
+    """
+    Visualize multiple masks side by side for comparison.
+    
+    Args:
+        masks (list): List of mask matrices
+        titles (list): List of titles for each mask
+        sample_size (int): Size of the sample to visualize
+        colormap: Matplotlib colormap to use
+        save_path (str): Path to save the visualization
+    """
+    n_masks = len(masks)
+    fig, axes = plt.subplots(1, n_masks, figsize=(6*n_masks, 8))
+    
+    for i, (mask, title, ax) in enumerate(zip(masks, titles, axes)):
+        im = ax.imshow(mask[0:sample_size, 0:sample_size], cmap=colormap, vmin=0, vmax=3)
+        ax.set_title(f'{title}\n({sample_size}x{sample_size} sample)')
+        ax.grid(True)
+        
+        # Calculate sparsity
+        sparsity = 1.0 - np.count_nonzero(mask) / mask.size
+        sample_sparsity = 1.0 - np.count_nonzero(mask[0:sample_size, 0:sample_size]) / (sample_size * sample_size)
+        
+        # Add sparsity annotation
+        ax.annotate(f'Sparsity: {sparsity:.4%}', 
+                    xy=(0.02, 0.02), 
+                    xycoords='axes fraction',
+                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
+    
+    # Add colorbar
+    fig.subplots_adjust(right=0.9)
+    cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(im, cax=cbar_ax, ticks=[0, 1, 2, 3])
+    cbar.set_ticklabels(['No Attention', 'Diagonal', 'Local', 'Strided/Column'])
+    
+    # Save the visualization
+    plt.savefig(save_path)
+    print(f"Comparison visualization saved as {save_path}")
+    
+    # Show the plot
+    plt.show()
+
 # Main function
 if __name__ == "__main__":
     # Parameters
@@ -264,6 +349,24 @@ if __name__ == "__main__":
     stride = 32
     custom_cmap = plt.cm.colors.ListedColormap(['lightgray', 'darkblue', 'royalblue', 'skyblue'])
     
+    # Create normal attention mask
+    print("Creating Normal attention mask step by step...")
+    normal_mask = create_normal_mask_step_by_step(128)
+    print("Normal attention mask created!")
+    
+    # Calculate sparsity
+    normal_sparsity = 1.0 - np.count_nonzero(normal_mask) / normal_mask.size
+    print(f"Normal attention sparsity: {normal_sparsity:.4%}")
+    
+    # Visualize normal mask
+    visualize_mask_sample(
+        mask=normal_mask,
+        title='Normal (Full) Attention Mask',
+        sample_size=128,
+        colormap=custom_cmap,
+        save_path='normal_mask_128x128.png'
+    )
+
     print("Creating Strided mask step by step...")
     
     # Create strided mask using the integrated function
@@ -319,4 +422,15 @@ if __name__ == "__main__":
         sample_size=128,
         colormap=custom_cmap,
         save_path='fixed_mask_128x128.png'
-    ) 
+    )
+    
+    # Create comparison visualization of all three mask types
+    print("\nCreating comparison visualization...")
+    visualize_mask_comparison(
+        masks=[normal_mask, strided_mask[:128, :128], fixed_mask[:128, :128]],
+        titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
+        sample_size=128,
+        colormap=custom_cmap,
+        save_path='mask_comparison_128x128.png'
+    )
+    print("Comparison visualization created!") 

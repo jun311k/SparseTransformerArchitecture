@@ -4,9 +4,17 @@ This project implements and visualizes sparse attention patterns for CIFAR-10 im
 
 ## Attention Patterns
 
-Two types of sparse attention patterns are implemented:
+Three types of attention patterns are implemented:
 
-### 1. Strided Pattern
+### 1. Normal (Full) Attention
+
+The normal attention pattern implements standard causal attention:
+- **Diagonal self-attention (value 1)**: Each token attends to itself
+- **Lower triangular attention (value 2)**: Each token attends to all previous tokens
+
+This pattern has **49.6% sparsity** (only upper triangular part is masked out).
+
+### 2. Strided Pattern
 
 The strided pattern combines three types of attention:
 - **Diagonal self-attention (value 1)**: Each token attends to itself
@@ -15,7 +23,7 @@ The strided pattern combines three types of attention:
 
 This pattern achieves approximately **95.4% sparsity** with a window size and stride of 32.
 
-### 2. Fixed Pattern
+### 3. Fixed Pattern
 
 The fixed pattern uses:
 - **Diagonal self-attention (value 1)**: Each token attends to itself
@@ -31,13 +39,17 @@ This project is implemented as a single Python file that provides:
 - Mask generation functions (step-by-step implementation)
 - Mask visualization tools
 - Sparsity calculation and statistics
+- Side-by-side comparison of different attention patterns
 
 ## Usage
 
 ### Generating Attention Masks
 
 ```python
-from sparse_transformer_mask import create_strided_mask_step_by_step, create_fixed_mask_step_by_step
+from sparse_transformer_mask import create_normal_mask_step_by_step, create_strided_mask_step_by_step, create_fixed_mask_step_by_step
+
+# Generate normal (full) attention mask
+normal_mask = create_normal_mask_step_by_step(size=128)
 
 # Generate strided mask
 strided_mask = create_strided_mask_step_by_step(size=1024, window_size=32, stride=32)
@@ -82,13 +94,39 @@ visualize_mask_sample(
 )
 ```
 
+### Comparing Multiple Attention Patterns
+
+```python
+from sparse_transformer_mask import visualize_mask_comparison
+
+# Compare all three attention patterns side by side
+visualize_mask_comparison(
+    masks=[normal_mask, strided_mask[:128, :128], fixed_mask[:128, :128]],
+    titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
+    sample_size=128,
+    colormap=custom_cmap,
+    save_path='mask_comparison_128x128.png'
+)
+```
+
 ### Running the Script Directly
 
 ```bash
 python sparse_transformer_mask.py
 ```
 
-This command generates Strided and Fixed pattern masks and visualizes 64x64 and 128x128 sized samples for each.
+This command:
+1. Generates Normal, Strided, and Fixed pattern masks
+2. Visualizes samples of each mask type
+3. Creates a side-by-side comparison of all three patterns
+
+## Color Mapping
+
+The visualization uses a custom colormap to distinguish different attention types:
+- **Gray (value 0)**: No attention (masked out)
+- **Dark blue (value 1)**: Diagonal/self-attention
+- **Royal blue (value 2)**: Local attention (and lower triangular in normal attention)
+- **Sky blue (value 3)**: Strided/fixed column attention
 
 ## Theoretical Efficiency
 
