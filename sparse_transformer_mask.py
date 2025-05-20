@@ -351,7 +351,7 @@ if __name__ == "__main__":
     
     # Create normal attention mask
     print("Creating Normal attention mask step by step...")
-    normal_mask = create_normal_mask_step_by_step(128)
+    normal_mask = create_normal_mask_step_by_step(size)
     print("Normal attention mask created!")
     
     # Calculate sparsity
@@ -427,7 +427,7 @@ if __name__ == "__main__":
     # Create comparison visualization of all three mask types
     print("\nCreating comparison visualization...")
     visualize_mask_comparison(
-        masks=[normal_mask, strided_mask[:128, :128], fixed_mask[:128, :128]],
+        masks=[normal_mask[:128, :128], strided_mask[:128, :128], fixed_mask[:128, :128]],
         titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
         sample_size=128,
         colormap=custom_cmap,
