@@ -341,6 +341,104 @@ def visualize_mask_comparison(masks, titles, sample_size, colormap, save_path):
     # Show the plot
     plt.show()
 
+def add_sliding_window(mask, window_size=32, value=2):
+    """
+    Add sliding window attention pattern.
+    
+    Args:
+        mask (numpy.ndarray): Input mask matrix
+        window_size (int, optional): Size of the sliding window. Defaults to 32.
+        value (int, optional): Value to set for sliding window attention. Defaults to 2.
+        
+    Returns:
+        numpy.ndarray: Mask with sliding window attention added
+    """
+    mask_copy = mask.copy()
+    size = mask_copy.shape[0]
+    
+    # For each query position
+    for i in range(size):
+        # Calculate window boundaries
+        start_idx = max(0, i - window_size // 2)
+        end_idx = min(size, i + window_size // 2 + 1)
+        
+        # Fill the sliding window (excluding diagonal)
+        for j in range(start_idx, end_idx):
+            if j != i:  # Skip diagonal
+                mask_copy[i, j] = value
+    
+    return mask_copy
+
+def add_dilated_sliding_window(mask, window_size=32, dilation=2, value=2):
+    """
+    Add dilated sliding window attention pattern.
+    각 row의 중심(자기 자신)을 기준으로 window_size만큼 dilation 간격으로 좌우에 점이 찍히는 형태.
+    
+    Args:
+        mask (numpy.ndarray): Input mask matrix
+        window_size (int, optional): Number of attended positions (must be odd). Defaults to 32.
+        dilation (int, optional): Dilation factor. Defaults to 2.
+        value (int, optional): Value to set for dilated sliding window attention. Defaults to 2.
+        
+    Returns:
+        numpy.ndarray: Mask with dilated sliding window attention added
+    """
+    mask_copy = mask.copy()
+    size = mask_copy.shape[0]
+    half = window_size // 2
+    
+    for i in range(size):
+        for k in range(-half, half+1):
+            j = i + k * dilation
+            if 0 <= j < size and j != i:
+                mask_copy[i, j] = value
+    return mask_copy
+
+def create_sliding_window_mask_step_by_step(size, window_size=32):
+    """
+    Create a sliding window attention mask step by step.
+    
+    Args:
+        size (int): Size of the square mask matrix
+        window_size (int, optional): Size of the sliding window. Defaults to 32.
+        
+    Returns:
+        numpy.ndarray: Complete sliding window attention mask
+    """
+    # Step 1: Create zero mask
+    mask = create_zero_mask(size)
+    
+    # Step 2: Add diagonal values
+    mask = add_diagonal(mask, value=1)
+    
+    # Step 3: Add sliding window attention
+    mask = add_sliding_window(mask, window_size, value=2)
+    
+    return mask
+
+def create_dilated_sliding_window_mask_step_by_step(size, window_size=32, dilation=2):
+    """
+    Create a dilated sliding window attention mask step by step.
+    
+    Args:
+        size (int): Size of the square mask matrix
+        window_size (int, optional): Size of the sliding window. Defaults to 32.
+        dilation (int, optional): Dilation factor. Defaults to 2.
+        
+    Returns:
+        numpy.ndarray: Complete dilated sliding window attention mask
+    """
+    # Step 1: Create zero mask
+    mask = create_zero_mask(size)
+    
+    # Step 2: Add diagonal values
+    mask = add_diagonal(mask, value=1)
+    
+    # Step 3: Add dilated sliding window attention
+    mask = add_dilated_sliding_window(mask, window_size, dilation, value=2)
+    
+    return mask
+
 # Main function
 if __name__ == "__main__":
     # Parameters
@@ -429,6 +527,72 @@ if __name__ == "__main__":
     visualize_mask_comparison(
         masks=[normal_mask[:128, :128], strided_mask[:128, :128], fixed_mask[:128, :128]],
         titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
+        sample_size=128,
+        colormap=custom_cmap,
+        save_path='mask_comparison_128x128.png'
+    )
+    print("Comparison visualization created!")
+
+    # Create sliding window mask
+    print("\nCreating Sliding Window mask step by step...")
+    sliding_window_mask = create_sliding_window_mask_step_by_step(
+        size=size,
+        window_size=window_size
+    )
+    print("Sliding Window mask created!")
+    
+    # Calculate sparsity
+    sliding_window_sparsity = 1.0 - np.count_nonzero(sliding_window_mask) / sliding_window_mask.size
+    print(f"Sliding Window attention sparsity: {sliding_window_sparsity:.4%}")
+    
+    # Visualize sliding window mask
+    visualize_mask_sample(
+        mask=sliding_window_mask,
+        title='Sliding Window Pattern Mask',
+        sample_size=128,
+        colormap=custom_cmap,
+        save_path='sliding_window_mask_128x128.png'
+    )
+    
+    # Create dilated sliding window mask
+    print("\nCreating Dilated Sliding Window mask step by step...")
+    dilated_sliding_window_mask = create_dilated_sliding_window_mask_step_by_step(
+        size=size,
+        window_size=window_size,
+        dilation=2
+    )
+    print("Dilated Sliding Window mask created!")
+    
+    # Calculate sparsity
+    dilated_sparsity = 1.0 - np.count_nonzero(dilated_sliding_window_mask) / dilated_sliding_window_mask.size
+    print(f"Dilated Sliding Window attention sparsity: {dilated_sparsity:.4%}")
+    
+    # Visualize dilated sliding window mask
+    visualize_mask_sample(
+        mask=dilated_sliding_window_mask,
+        title='Dilated Sliding Window Pattern Mask',
+        sample_size=128,
+        colormap=custom_cmap,
+        save_path='dilated_sliding_window_mask_128x128.png'
+    )
+    
+    # Create comparison visualization including all patterns
+    print("\nCreating comparison visualization...")
+    visualize_mask_comparison(
+        masks=[
+            normal_mask[:128, :128],
+            strided_mask[:128, :128],
+            fixed_mask[:128, :128],
+            sliding_window_mask[:128, :128],
+            dilated_sliding_window_mask[:128, :128]
+        ],
+        titles=[
+            'Normal (Full) Attention',
+            'Strided Pattern',
+            'Fixed Pattern',
+            'Sliding Window',
+            'Dilated Sliding Window'
+        ],
         sample_size=128,
         colormap=custom_cmap,
         save_path='mask_comparison_128x128.png'

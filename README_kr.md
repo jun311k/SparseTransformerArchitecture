@@ -6,7 +6,7 @@
 
 ## 어텐션 패턴
 
-세 가지 어텐션 패턴이 구현되어 있습니다:
+다섯 가지 어텐션 패턴이 구현되어 있습니다:
 
 ### 1. 일반(Full) 어텐션
 
@@ -15,6 +15,8 @@
 - **하삼각 어텐션(값 2)**: 각 토큰이 이전 모든 토큰에 attend
 
 이 패턴의 희소성은 **49.6%** 입니다(상삼각 부분만 마스킹).
+
+![일반 어텐션](images/normal_mask_128x128.png)
 
 ### 2. Strided 패턴
 
@@ -25,6 +27,8 @@ Strided 패턴은 세 가지 어텐션을 결합합니다:
 
 윈도우 크기와 스트라이드가 32일 때 약 **95.4% 희소성**을 가집니다.
 
+![Strided 패턴](images/strided_mask_128x128.png)
+
 ### 3. Fixed 패턴
 
 Fixed 패턴은 다음과 같습니다:
@@ -33,6 +37,28 @@ Fixed 패턴은 다음과 같습니다:
 - **고정 컬럼 어텐션(값 3)**: 각 토큰이 각 이전 블록의 마지막 토큰에 attend
 
 블록 크기 32일 때 약 **96.9% 희소성**을 가집니다.
+
+![Fixed 패턴](images/fixed_mask_128x128.png)
+
+### 4. Sliding Window 패턴
+
+각 토큰이 고정 크기 윈도우 내 이웃 토큰에 attend (자기 자신 제외):
+- **대각선 자기-어텐션(값 1)**
+- **슬라이딩 윈도우 어텐션(값 2)**
+
+윈도우 크기 32일 때 약 **96.8% 희소성**을 가집니다.
+
+![Sliding Window 패턴](images/sliding_window_mask_128x128.png)
+
+### 5. Dilated Sliding Window 패턴
+
+각 토큰이 dilation 간격으로 떨어진 위치에 attend:
+- **대각선 자기-어텐션(값 1)**
+- **dilated sliding window 어텐션(값 2)**
+
+윈도우 크기 32, dilation 2일 때 약 **96.8% 희소성**을 가집니다.
+
+![Dilated Sliding Window 패턴](images/dilated_sliding_window_mask_128x128.png)
 
 ## 구현 세부사항
 
@@ -48,7 +74,13 @@ Fixed 패턴은 다음과 같습니다:
 ### 어텐션 마스크 생성
 
 ```python
-from sparse_transformer_mask import create_normal_mask_step_by_step, create_strided_mask_step_by_step, create_fixed_mask_step_by_step
+from sparse_transformer_mask import (
+    create_normal_mask_step_by_step,
+    create_strided_mask_step_by_step,
+    create_fixed_mask_step_by_step,
+    create_sliding_window_mask_step_by_step,
+    create_dilated_sliding_window_mask_step_by_step
+)
 
 # 일반(Full) 어텐션 마스크 생성
 normal_mask = create_normal_mask_step_by_step(size=1024)
@@ -58,6 +90,12 @@ strided_mask = create_strided_mask_step_by_step(size=1024, window_size=32, strid
 
 # Fixed 마스크 생성
 fixed_mask = create_fixed_mask_step_by_step(size=1024, window_size=32)
+
+# Sliding Window 마스크 생성
+sliding_window_mask = create_sliding_window_mask_step_by_step(size=1024, window_size=32)
+
+# Dilated Sliding Window 마스크 생성
+dilated_sliding_window_mask = create_dilated_sliding_window_mask_step_by_step(size=1024, window_size=32, dilation=2)
 ```
 
 ### 바이너리 마스크로 변환
@@ -101,15 +139,29 @@ visualize_mask_sample(
 ```python
 from sparse_transformer_mask import visualize_mask_comparison
 
-# 세 가지 어텐션 패턴을 나란히 비교 (각각 128x128 샘플)
+# 다섯 가지 어텐션 패턴을 나란히 비교 (각각 128x128 샘플)
 visualize_mask_comparison(
-    masks=[normal_mask[:128, :128], strided_mask[:128, :128], fixed_mask[:128, :128]],
-    titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
+    masks=[
+        normal_mask[:128, :128],
+        strided_mask[:128, :128],
+        fixed_mask[:128, :128],
+        sliding_window_mask[:128, :128],
+        dilated_sliding_window_mask[:128, :128]
+    ],
+    titles=[
+        'Normal (Full) Attention',
+        'Strided Pattern',
+        'Fixed Pattern',
+        'Sliding Window',
+        'Dilated Sliding Window'
+    ],
     sample_size=128,
     colormap=custom_cmap,
     save_path='mask_comparison_128x128.png'
 )
 ```
+
+![모든 패턴 비교](images/mask_comparison_128x128.png)
 
 ### 스크립트 직접 실행
 
@@ -118,9 +170,9 @@ python sparse_transformer_mask.py
 ```
 
 이 명령은 다음을 수행합니다:
-1. Normal, Strided, Fixed 패턴 마스크(모두 1024x1024)를 생성
+1. Normal, Strided, Fixed, Sliding Window, Dilated Sliding Window 마스크(모두 1024x1024)를 생성
 2. 각 마스크 타입의 샘플을 시각화
-3. 세 가지 패턴의 128x128 샘플을 나란히 비교하는 그림 생성
+3. 다섯 가지 패턴의 128x128 샘플을 나란히 비교하는 그림 생성
 
 ## 컬러 매핑
 

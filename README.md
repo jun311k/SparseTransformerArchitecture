@@ -6,7 +6,7 @@ This project implements and visualizes sparse attention patterns for CIFAR-10 im
 
 ## Attention Patterns
 
-Three types of attention patterns are implemented:
+Five types of attention patterns are implemented:
 
 ### 1. Normal (Full) Attention
 
@@ -15,6 +15,8 @@ The normal attention pattern implements standard causal attention:
 - **Lower triangular attention (value 2)**: Each token attends to all previous tokens
 
 This pattern has **49.6% sparsity** (only upper triangular part is masked out).
+
+![Normal Attention](images/normal_mask_128x128.png)
 
 ### 2. Strided Pattern
 
@@ -25,6 +27,8 @@ The strided pattern combines three types of attention:
 
 This pattern achieves approximately **95.4% sparsity** with a window size and stride of 32.
 
+![Strided Pattern](images/strided_mask_128x128.png)
+
 ### 3. Fixed Pattern
 
 The fixed pattern uses:
@@ -33,6 +37,28 @@ The fixed pattern uses:
 - **Fixed column attention (value 3)**: Each token attends to the last token of each previous block
 
 This pattern achieves approximately **96.9% sparsity** with a block size of 32.
+
+![Fixed Pattern](images/fixed_mask_128x128.png)
+
+### 4. Sliding Window Pattern
+
+Each token attends to a fixed-size window of neighboring tokens (excluding itself):
+- **Diagonal self-attention (value 1)**
+- **Sliding window attention (value 2)**
+
+This pattern achieves approximately **96.8% sparsity** with a window size of 32.
+
+![Sliding Window Pattern](images/sliding_window_mask_128x128.png)
+
+### 5. Dilated Sliding Window Pattern
+
+Each token attends to a fixed number of positions spaced by a dilation factor:
+- **Diagonal self-attention (value 1)**
+- **Dilated sliding window attention (value 2)**
+
+This pattern achieves approximately **96.8% sparsity** with a window size of 32 and dilation of 2.
+
+![Dilated Sliding Window Pattern](images/dilated_sliding_window_mask_128x128.png)
 
 ## Implementation Details
 
@@ -48,7 +74,13 @@ This project is implemented as a single Python file that provides:
 ### Generating Attention Masks
 
 ```python
-from sparse_transformer_mask import create_normal_mask_step_by_step, create_strided_mask_step_by_step, create_fixed_mask_step_by_step
+from sparse_transformer_mask import (
+    create_normal_mask_step_by_step,
+    create_strided_mask_step_by_step,
+    create_fixed_mask_step_by_step,
+    create_sliding_window_mask_step_by_step,
+    create_dilated_sliding_window_mask_step_by_step
+)
 
 # Generate normal (full) attention mask
 normal_mask = create_normal_mask_step_by_step(size=1024)
@@ -58,6 +90,12 @@ strided_mask = create_strided_mask_step_by_step(size=1024, window_size=32, strid
 
 # Generate fixed mask
 fixed_mask = create_fixed_mask_step_by_step(size=1024, window_size=32)
+
+# Generate sliding window mask
+sliding_window_mask = create_sliding_window_mask_step_by_step(size=1024, window_size=32)
+
+# Generate dilated sliding window mask
+dilated_sliding_window_mask = create_dilated_sliding_window_mask_step_by_step(size=1024, window_size=32, dilation=2)
 ```
 
 ### Converting to Binary Masks
@@ -101,15 +139,29 @@ visualize_mask_sample(
 ```python
 from sparse_transformer_mask import visualize_mask_comparison
 
-# Compare all three attention patterns side by side (showing 128x128 samples)
+# Compare all five attention patterns side by side (showing 128x128 samples)
 visualize_mask_comparison(
-    masks=[normal_mask[:128, :128], strided_mask[:128, :128], fixed_mask[:128, :128]],
-    titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
+    masks=[
+        normal_mask[:128, :128],
+        strided_mask[:128, :128],
+        fixed_mask[:128, :128],
+        sliding_window_mask[:128, :128],
+        dilated_sliding_window_mask[:128, :128]
+    ],
+    titles=[
+        'Normal (Full) Attention',
+        'Strided Pattern',
+        'Fixed Pattern',
+        'Sliding Window',
+        'Dilated Sliding Window'
+    ],
     sample_size=128,
     colormap=custom_cmap,
     save_path='mask_comparison_128x128.png'
 )
 ```
+
+![Comparison of All Patterns](images/mask_comparison_128x128.png)
 
 ### Running the Script Directly
 
@@ -118,16 +170,16 @@ python sparse_transformer_mask.py
 ```
 
 This command:
-1. Generates Normal, Strided, and Fixed pattern masks (all 1024x1024)
+1. Generates Normal, Strided, Fixed, Sliding Window, and Dilated Sliding Window pattern masks (all 1024x1024)
 2. Visualizes samples of each mask type
-3. Creates a side-by-side comparison of all three patterns (showing 128x128 samples from each)
+3. Creates a side-by-side comparison of all five patterns (showing 128x128 samples from each)
 
 ## Color Mapping
 
 The visualization uses a custom colormap to distinguish different attention types:
 - **Gray (value 0)**: No attention (masked out)
 - **Dark blue (value 1)**: Diagonal/self-attention
-- **Royal blue (value 2)**: Local attention (and lower triangular in normal attention)
+- **Royal blue (value 2)**: Local/sliding/dilated attention
 - **Sky blue (value 3)**: Strided/fixed column attention
 
 ## Theoretical Efficiency
