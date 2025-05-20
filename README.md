@@ -1,5 +1,7 @@
 # Sparse Transformer Attention Masks for CIFAR-10
 
+**한국어 버전은 [README_kr.md](README_kr.md)를 참고하세요.**
+
 This project implements and visualizes sparse attention patterns for CIFAR-10 image data (32x32 pixels = 1024 tokens). Sparse attention patterns significantly reduce computational complexity and memory usage while maintaining the model's ability to capture local and global dependencies.
 
 ## Attention Patterns
@@ -49,7 +51,7 @@ This project is implemented as a single Python file that provides:
 from sparse_transformer_mask import create_normal_mask_step_by_step, create_strided_mask_step_by_step, create_fixed_mask_step_by_step
 
 # Generate normal (full) attention mask
-normal_mask = create_normal_mask_step_by_step(size=128)
+normal_mask = create_normal_mask_step_by_step(size=1024)
 
 # Generate strided mask
 strided_mask = create_strided_mask_step_by_step(size=1024, window_size=32, stride=32)
@@ -99,9 +101,9 @@ visualize_mask_sample(
 ```python
 from sparse_transformer_mask import visualize_mask_comparison
 
-# Compare all three attention patterns side by side
+# Compare all three attention patterns side by side (showing 128x128 samples)
 visualize_mask_comparison(
-    masks=[normal_mask, strided_mask[:128, :128], fixed_mask[:128, :128]],
+    masks=[normal_mask[:128, :128], strided_mask[:128, :128], fixed_mask[:128, :128]],
     titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
     sample_size=128,
     colormap=custom_cmap,
@@ -116,9 +118,9 @@ python sparse_transformer_mask.py
 ```
 
 This command:
-1. Generates Normal, Strided, and Fixed pattern masks
+1. Generates Normal, Strided, and Fixed pattern masks (all 1024x1024)
 2. Visualizes samples of each mask type
-3. Creates a side-by-side comparison of all three patterns
+3. Creates a side-by-side comparison of all three patterns (showing 128x128 samples from each)
 
 ## Color Mapping
 
