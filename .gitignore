@@ -41,4 +41,6 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-*.png 
+# *.png
+
+# ... existing code ... 
