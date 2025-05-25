@@ -504,15 +504,6 @@ if __name__ == "__main__":
     fixed_sparsity = 1.0 - np.count_nonzero(fixed_mask) / fixed_mask.size
     print(f"Fixed pattern sparsity: {fixed_sparsity:.4%}")
     
-    # Visualize 64x64 sample of fixed mask
-    visualize_mask_sample(
-        mask=fixed_mask,
-        title='Fixed Pattern Mask',
-        sample_size=64,
-        colormap=custom_cmap,
-        save_path='fixed_mask_64x64.png'
-    )
-    
     # Visualize 128x128 sample of fixed mask
     visualize_mask_sample(
         mask=fixed_mask,
