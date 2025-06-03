@@ -65,7 +65,8 @@ module bf16_multiplier (
             stage1_is_inf <= 1'b0;
             stage1_is_nan <= 1'b0;
             stage1_valid <= 1'b0;
-        end else begin
+        end
+        else begin
             stage1_valid <= in_valid;
             if (in_valid) begin
                 // Sign calculation
@@ -78,7 +79,8 @@ module bf16_multiplier (
                     stage1_is_inf <= 1'b0;
                     stage1_exp <= 9'd0;
                     stage1_mant <= 14'd0;
-                end else if (a_is_inf || b_is_inf) begin
+                end
+                else if (a_is_inf || b_is_inf) begin
                     if (a_is_zero || b_is_zero) begin
                         stage1_is_nan <= 1'b1;
                         stage1_is_zero <= 1'b0;
@@ -90,13 +92,15 @@ module bf16_multiplier (
                     end
                     stage1_exp <= 9'd0;
                     stage1_mant <= 14'd0;
-                end else if (a_is_zero || b_is_zero) begin
+                end
+                else if (a_is_zero || b_is_zero) begin
                     stage1_is_zero <= 1'b1;
                     stage1_is_inf <= 1'b0;
                     stage1_is_nan <= 1'b0;
                     stage1_exp <= 9'd0;
                     stage1_mant <= 14'd0;
-                end else begin
+                end
+                else begin
                     stage1_is_zero <= 1'b0;
                     stage1_is_inf <= 1'b0;
                     stage1_is_nan <= 1'b0;
@@ -108,11 +112,14 @@ module bf16_multiplier (
                     if (a_exp == 0 && b_exp == 0) begin
                         // Both inputs are denormalized
                         stage1_exp <= 9'd0;
-                    end else if (a_exp == 0) begin
+                    end
+                    else if (a_exp == 0) begin
                         stage1_exp <= {1'b0, b_exp} - 9'd127;
-                    end else if (b_exp == 0) begin
+                    end
+                    else if (b_exp == 0) begin
                         stage1_exp <= {1'b0, a_exp} - 9'd127;
-                    end else begin
+                    end
+                    else begin
                         stage1_exp <= {1'b0, a_exp} + {1'b0, b_exp} - 9'd127;
                     end
                 end
@@ -130,7 +137,8 @@ module bf16_multiplier (
             stage2_is_inf <= 1'b0;
             stage2_is_nan <= 1'b0;
             stage2_valid <= 1'b0;
-        end else begin
+        end
+        else begin
             stage2_valid <= stage1_valid;
             stage2_sign <= stage1_sign;
             stage2_is_nan <= stage1_is_nan;
@@ -139,17 +147,20 @@ module bf16_multiplier (
                 stage2_mant_full <= 14'h2000;
                 stage2_is_zero <= 1'b0;
                 stage2_is_inf <= 1'b0;
-            end else if (stage1_is_inf) begin
+            end
+            else if (stage1_is_inf) begin
                 stage2_exp <= 8'hFF;
                 stage2_mant_full <= 14'd0;
                 stage2_is_zero <= 1'b0;
                 stage2_is_inf <= 1'b1;
-            end else if (stage1_is_zero || stage1_mant == 0) begin
+            end
+            else if (stage1_is_zero || stage1_mant == 0) begin
                 stage2_exp <= 8'd0;
                 stage2_mant_full <= 14'd0;
                 stage2_is_zero <= 1'b1;
                 stage2_is_inf <= 1'b0;
-            end else begin
+            end
+            else begin
                 // Normalize mantissa
                 reg [13:0] norm_mant;
                 reg [8:0] norm_exp;
@@ -194,11 +205,14 @@ module bf16_multiplier (
             out_valid <= stage2_valid;
             if (stage2_is_nan) begin
                 result <= {1'b0, 8'hFF, 7'h40};  // Quiet NaN
-            end else if (stage2_is_inf) begin
+            end
+            else if (stage2_is_inf) begin
                 result <= {stage2_sign, 8'hFF, 7'h00};  // Infinity
-            end else if (stage2_is_zero) begin
+            end
+            else if (stage2_is_zero) begin
                 result <= {stage2_sign, 8'h00, 7'h00};  // Zero
-            end else begin
+            end
+            else begin
                 result <= {stage2_sign, stage2_exp, stage2_mant_full[12:6]};
             end
         end
