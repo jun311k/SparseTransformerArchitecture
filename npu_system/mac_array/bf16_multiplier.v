@@ -55,93 +55,85 @@ module bf16_multiplier (
     assign a_is_nan = (a_exp == 8'hFF) && (a_mant != 7'd0);
     assign b_is_nan = (b_exp == 8'hFF) && (b_mant != 7'd0);
     
-    // Stage 1: Basic multiplication and exponent calculation
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            stage1_sign <= 1'b0;
-            stage1_exp <= 9'd0;
-            stage1_mant <= 14'd0;
-            stage1_is_zero <= 1'b0;
-            stage1_is_inf <= 1'b0;
-            stage1_is_nan <= 1'b0;
             stage1_valid <= 1'b0;
+            stage2_valid <= 9'd0;
+            out_valid <= 14'd0;
         end
         else begin
             stage1_valid <= in_valid;
-            if (in_valid) begin
-                // Sign calculation
-                stage1_sign <= a[15] ^ b[15];
-                
-                // Special cases
-                if (a_is_nan || b_is_nan) begin
+            stage2_valid <= stage1_valid;
+            out_valid <= stage2_valid;
+        end
+    end
+
+    // Stage 1: Basic multiplication and exponent calculation
+    always @(posedge clk) begin
+        if (in_valid) begin
+            // Sign calculation
+            stage1_sign <= a[15] ^ b[15];
+            
+            // Special cases
+            if (a_is_nan || b_is_nan) begin
+                stage1_is_nan <= 1'b1;
+                stage1_is_zero <= 1'b0;
+                stage1_is_inf <= 1'b0;
+                stage1_exp <= 9'd0;
+                stage1_mant <= 14'd0;
+            end
+            else if (a_is_inf || b_is_inf) begin
+                if (a_is_zero || b_is_zero) begin
                     stage1_is_nan <= 1'b1;
                     stage1_is_zero <= 1'b0;
                     stage1_is_inf <= 1'b0;
-                    stage1_exp <= 9'd0;
-                    stage1_mant <= 14'd0;
-                end
-                else if (a_is_inf || b_is_inf) begin
-                    if (a_is_zero || b_is_zero) begin
-                        stage1_is_nan <= 1'b1;
-                        stage1_is_zero <= 1'b0;
-                        stage1_is_inf <= 1'b0;
-                    end else begin
-                        stage1_is_inf <= 1'b1;
-                        stage1_is_zero <= 1'b0;
-                        stage1_is_nan <= 1'b0;
-                    end
-                    stage1_exp <= 9'd0;
-                    stage1_mant <= 14'd0;
-                end
-                else if (a_is_zero || b_is_zero) begin
-                    stage1_is_zero <= 1'b1;
-                    stage1_is_inf <= 1'b0;
+                end else begin
+                    stage1_is_inf <= 1'b1;
+                    stage1_is_zero <= 1'b0;
                     stage1_is_nan <= 1'b0;
+                end
+                stage1_exp <= 9'd0;
+                stage1_mant <= 14'd0;
+            end
+            else if (a_is_zero || b_is_zero) begin
+                stage1_is_zero <= 1'b1;
+                stage1_is_inf <= 1'b0;
+                stage1_is_nan <= 1'b0;
+                stage1_exp <= 9'd0;
+                stage1_mant <= 14'd0;
+            end
+            else begin
+                stage1_is_zero <= 1'b0;
+                stage1_is_inf <= 1'b0;
+                stage1_is_nan <= 1'b0;
+                
+                // Multiply mantissas first
+                stage1_mant <= {1'b1, a_mant} * {1'b1, b_mant};
+                
+                // Calculate exponent
+                if (a_exp == 0 && b_exp == 0) begin
+                    // Both inputs are denormalized
                     stage1_exp <= 9'd0;
-                    stage1_mant <= 14'd0;
+                end
+                else if (a_exp == 0) begin
+                    stage1_exp <= {1'b0, b_exp} - 9'd127;
+                end
+                else if (b_exp == 0) begin
+                    stage1_exp <= {1'b0, a_exp} - 9'd127;
                 end
                 else begin
-                    stage1_is_zero <= 1'b0;
-                    stage1_is_inf <= 1'b0;
-                    stage1_is_nan <= 1'b0;
-                    
-                    // Multiply mantissas first
-                    stage1_mant <= {1'b1, a_mant} * {1'b1, b_mant};
-                    
-                    // Calculate exponent
-                    if (a_exp == 0 && b_exp == 0) begin
-                        // Both inputs are denormalized
-                        stage1_exp <= 9'd0;
-                    end
-                    else if (a_exp == 0) begin
-                        stage1_exp <= {1'b0, b_exp} - 9'd127;
-                    end
-                    else if (b_exp == 0) begin
-                        stage1_exp <= {1'b0, a_exp} - 9'd127;
-                    end
-                    else begin
-                        stage1_exp <= {1'b0, a_exp} + {1'b0, b_exp} - 9'd127;
-                    end
+                    stage1_exp <= {1'b0, a_exp} + {1'b0, b_exp} - 9'd127;
                 end
             end
         end
     end
 
     // Stage 2: Normalization and overflow/underflow check
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            stage2_sign <= 1'b0;
-            stage2_exp <= 8'd0;
-            stage2_mant_full <= 14'd0;
-            stage2_is_zero <= 1'b0;
-            stage2_is_inf <= 1'b0;
-            stage2_is_nan <= 1'b0;
-            stage2_valid <= 1'b0;
-        end
-        else begin
-            stage2_valid <= stage1_valid;
+    always @(posedge clk) begin
+        if (stage1_valid) begin
             stage2_sign <= stage1_sign;
             stage2_is_nan <= stage1_is_nan;
+
             if (stage1_is_nan) begin
                 stage2_exp <= 8'hFF;
                 stage2_mant_full <= 14'h2000;
@@ -197,12 +189,8 @@ module bf16_multiplier (
     end
 
     // Output assignment
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            result <= 16'd0;
-            out_valid <= 1'b0;
-        end else begin
-            out_valid <= stage2_valid;
+    always @(posedge clk) begin
+        if (stage2_valid) begin
             if (stage2_is_nan) begin
                 result <= {1'b0, 8'hFF, 7'h40};  // Quiet NaN
             end
