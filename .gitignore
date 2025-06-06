@@ -40,7 +40,5 @@ ENV/
 ehthumbs.db
 Thumbs.db
 
-# Project specific
-# *.png
-
-# ... existing code ... 
+# Project specific# "obj_dir" wherever it is located
+obj_dir/
