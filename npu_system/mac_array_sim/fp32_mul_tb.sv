@@ -165,9 +165,9 @@ module fp32_mul_tb;
         $fclose(file);
         
         // Load expected results
-        file = $fopen("test_fp32_expected.txt", "r");
+        file = $fopen("fp32_expected.txt", "r");
         if (file == 0) begin
-            $display("Error: Could not open test_fp32_expected.txt");
+            $display("Error: Could not open fp32_expected.txt");
             $finish;
         end
 

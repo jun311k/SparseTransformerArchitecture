@@ -110,16 +110,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    output_file = fopen("test_fp32_expected.txt", "w");
+    output_file = fopen("fp32_expected.txt", "w");
     if (output_file == NULL) {
-        fprintf(stderr, "Error opening test_fp32_expected.txt for writing.\n");
+        fprintf(stderr, "Error opening fp32_expected.txt for writing.\n");
         fclose(input_file);
         return 1;
     }
 
-    fp_reason = fopen("test_fp32_refc_details.txt", "w");
+    fp_reason = fopen("fp32_refc_details.txt", "w");
     if (fp_reason == NULL) {
-        fprintf(stderr, "Error opening test_fp32_refc_details.txt for writing.\n");
+        fprintf(stderr, "Error opening fp32_refc_details.txt for writing.\n");
         fclose(input_file);
         fclose(output_file);
         return 1;
@@ -155,6 +155,6 @@ int main(int argc, char *argv[]) {
     fclose(input_file);
     fclose(output_file);
     fclose(fp_reason);
-    printf("Processing complete. Results written to test_fp32_expected.txt and test_fp32_refc_details.txt.\n");
+    printf("Processing complete. Results written to fp32_expected.txt and fp32_refc_details.txt.\n");
     return 0;
 }
