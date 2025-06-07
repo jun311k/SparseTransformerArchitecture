@@ -360,7 +360,7 @@ module fp32_mul (
                     (s1_a_is_subnormal_reg && s1_b_is_subnormal_reg)) begin // If product was zero, shifted to zero, or both inputs are subnormal
             final_exp = EXP_ZERO;
             final_mant = MAN_ZERO;
-        end else if (final_exp <= 0) begin // Underflow (Flush to Zero for simplicity)
+        end else if (exp_after_norm_shift < -126) begin // Underflow (Flush to Zero for simplicity)
             final_exp = EXP_ZERO;
             final_mant = MAN_ZERO;
         end
