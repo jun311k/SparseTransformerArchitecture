@@ -313,7 +313,7 @@ module fp32_mul_tb;
         for (i = 0; i < 23; i = i + 1) begin
             if (temp[22-i]) begin
                 result = result + (1.0 / (1 << (i+1)));
-            end
+        end
         end
         
         return result * power;
@@ -341,7 +341,13 @@ module fp32_mul_tb;
                 return "nan";
             end
         end else begin
-            $sformat(result, "%f", value);
+            // Use scientific notation for very small numbers
+            if (value < 1e-10 || value > 1e10) begin
+                $sformat(result, "%e", value);
+            end else begin
+                // For normal numbers, use %g to remove trailing zeros
+                $sformat(result, "%g", value);
+            end
             return result;
         end
     endfunction
@@ -515,7 +521,7 @@ module fp32_mul_tb;
     // Function to get category name
     function string get_category_name;
         input [31:0] category;
-        case (category)
+            case (category)
             NORMAL_WO_ZERO: return "NORMAL_WO_ZERO";
             NORMAL_W_ZERO:  return "NORMAL_W_ZERO";
             INF_CASE:      return "INF_CASE";
@@ -524,7 +530,7 @@ module fp32_mul_tb;
             UNDERFLOW:     return "UNDERFLOW";
             DENORMAL:      return "DENORMAL";
             default:       return "UNKNOWN";
-        endcase
+            endcase
     endfunction
 
 endmodule
