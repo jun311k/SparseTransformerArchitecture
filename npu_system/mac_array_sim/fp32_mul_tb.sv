@@ -4,115 +4,132 @@
 module fp32_mul_tb;
 
     // Parameters
-    localparam NUM_BASIC_TESTS = 48; // Number of test cases in init_test_cases
+    localparam MAX_TEST_CASES = 1000;
 
-    // Test case memory (96 bits: 32-bit padding + 32-bit A + 32-bit B)
-    reg [2+32*2-1:0] test_cases_mem [0:999];
-    reg [31:0] expected_results_mem [0:999];
+    // Test case memory (96 bits: 32-bit A + 32-bit B + 32-bit category)
+    logic [32*3-1:0] test_cases_mem [0:MAX_TEST_CASES-1];
+    logic [31:0] expected_results_mem [0:MAX_TEST_CASES-1];
+    logic [31:0] actual_results_mem [0:MAX_TEST_CASES-1];  // Add memory for actual results
     integer num_test_cases;
     integer num_expected_results;
-    reg [1:0] test_category;  // Rename to test_category to avoid confusion
     integer first_failed_idx;
+    integer test_index;  // Add test_index for waveform viewing
+    integer current_test_idx;  // Add current_test_idx for waveform viewing
+    logic [31:0] wait_counter;
+    
+    // Test signals
+    logic [31:0] read_a;  // Current test input A
+    logic [31:0] read_b;  // Current test input B
+    logic [31:0] category;  // Current test category
+    logic [31:0] dut_a;    // DUT input A
+    logic [31:0] dut_b;    // DUT input B
+    logic [31:0] dut_result;  // DUT output result
+    logic in_valid;
+    logic out_valid;
+    logic [31:0] read_result;
+    
+    // Test category definitions
+    localparam NORMAL_WO_ZERO = 32'd0;  // Normal multiplication without zero
+    localparam NORMAL_W_ZERO  = 32'd1;  // Normal multiplication with zero
+    localparam INF_CASE      = 32'd2;  // Infinity cases
+    localparam NAN_CASE      = 32'd3;  // NaN cases
+    localparam OVERFLOW      = 32'd4;  // Overflow cases
+    localparam UNDERFLOW     = 32'd5;  // Underflow cases
+    localparam DENORMAL      = 32'd6;  // Denormal cases
+    
+    // Test category tracking
+    integer normal_wo_zero_total = 0;
+    integer normal_wo_zero_passed = 0;
+    integer normal_w_zero_total = 0;
+    integer normal_w_zero_passed = 0;
+    integer inf_total = 0;
+    integer inf_passed = 0;
+    integer nan_total = 0;
+    integer nan_passed = 0;
+    integer overflow_total = 0;
+    integer overflow_passed = 0;
+    integer underflow_total = 0;
+    integer underflow_passed = 0;
+    integer denormal_total = 0;
+    integer denormal_passed = 0;
     
     // Test statistics
     integer total_tests;
     integer passed_tests;
     integer failed_tests;
     
-    // Category statistics
-    integer normal_wo_zero_total;
-    integer normal_wo_zero_passed;
-    integer normal_w_zero_total;
-    integer normal_w_zero_passed;
-    integer inf_total;
-    integer inf_passed;
-    integer nan_total;
-    integer nan_passed;
-    integer overflow_total;
-    integer overflow_passed;
-    integer underflow_total;
-    integer underflow_passed;
-    integer denormal_total;
-    integer denormal_passed;
-    
     // Test case parameters
-    reg [31:0] a;
-    reg [31:0] b;
-    wire [31:0] result;
     reg [31:0] expected_result;
-    reg in_valid;
-    wire out_valid;
+
     
     // Clock and reset
     reg clk;
     reg rst_n;
     
-    // Test category type
-    typedef enum logic [2:0] {
-        NORMAL_WO_ZERO = 3'b000,  // Normal numbers without zero
-        NORMAL_W_ZERO  = 3'b001,  // Normal numbers with zero
-        INF_CASE      = 3'b010,  // Infinity cases
-        NAN_CASE      = 3'b011,  // NaN cases
-        OVERFLOW      = 3'b100,  // Overflow cases
-        UNDERFLOW     = 3'b101,  // Underflow cases
-        DENORMAL      = 3'b110   // Denormal numbers
-    } test_category_t;
-
-    // Function to determine test category
-    function automatic test_category_t get_test_category(
+    // Task to determine test category
+    task get_test_category(
         input [31:0] a,
-        input [31:0] b
+        input [31:0] b,
+        output [31:0] category
     );
         // Check for NaN
         if ((a[30:23] == 8'hFF && a[22:0] != 0) || 
             (b[30:23] == 8'hFF && b[22:0] != 0)) begin
-            return NAN_CASE;
+            category = NAN_CASE;
         end
-        
+        // Check for Infinity * zero (results in NaN)
+        else if (((a[30:23] == 8'hFF && a[22:0] == 0) || 
+                 (b[30:23] == 8'hFF && b[22:0] == 0)) &&
+                ((a == 32'h00000000 || a == 32'h80000000) ||
+                 (b == 32'h00000000 || b == 32'h80000000))) begin
+            category = NAN_CASE;
+        end
         // Check for Infinity
-        if ((a[30:23] == 8'hFF && a[22:0] == 0) || 
-            (b[30:23] == 8'hFF && b[22:0] == 0)) begin
-            return INF_CASE;
+        else if ((a[30:23] == 8'hFF && a[22:0] == 0) || 
+                 (b[30:23] == 8'hFF && b[22:0] == 0)) begin
+            category = INF_CASE;
         end
-        
         // Check for zero
-        if (a == 32'h00000000 || a == 32'h80000000 ||
-            b == 32'h00000000 || b == 32'h80000000) begin
-            return NORMAL_W_ZERO;
+        else if (a == 32'h00000000 || a == 32'h80000000 ||
+                 b == 32'h00000000 || b == 32'h80000000) begin
+            category = NORMAL_W_ZERO;
         end
-        
-        // Check for denormal numbers
-        if ((a[30:23] == 8'h00 && a[22:0] != 0) || 
-            (b[30:23] == 8'h00 && b[22:0] != 0)) begin
-            return DENORMAL;
-        end
-        
-        // Check for potential overflow
-        // If sum of exponents would exceed maximum
-        if ((a[30:23] > 8'h7F) && (b[30:23] > 8'h7F)) begin
-            return OVERFLOW;
-        end
-        
-        // Check for potential underflow
-        // If sum of exponents would be too small
-        if ((a[30:23] < 8'h7F) && (b[30:23] < 8'h7F) && 
-            (a[30:23] + b[30:23] < 8'h7F)) begin
-            return UNDERFLOW;
-        end
-        
-        // Normal case without zero
-        return NORMAL_WO_ZERO;
-    endfunction
+        // Check for potential overflow/underflow (IEEE 754 방식)
+        else begin
+            reg [15:0] exp_sum;
+            reg [47:0] mant_prod;
+            exp_sum = a[30:23] + b[30:23] - 127;
+            //$display("Debug - A: %h, B: %h", a, b);
+            //$display("Debug - A exp: %d, B exp: %d", a[30:23], b[30:23]);
+            //$display("Debug - Initial exp_sum: %0d (bin: %b, width: %0d)", exp_sum, exp_sum, $bits(exp_sum));
 
-    // Instantiate FP32 multiplier
+            if (exp_sum[15] == 1'b1 || a[30:23] == 8'h00 || b[30:23] == 8'h00) begin
+                category = UNDERFLOW;
+            end else if (exp_sum > 254) begin
+                category = OVERFLOW;
+            end else if (exp_sum == 254) begin
+                mant_prod = {1'b1, a[22:0]} * {1'b1, b[22:0]};
+                //$display("Debug - mant_prod: %h", mant_prod);
+                //$display("Debug - mant_prod[47:46]: %b", mant_prod[47:46]);
+                if (mant_prod[47:46] != 2'b00)
+                    category = OVERFLOW;
+                else
+                    category = NORMAL_WO_ZERO;
+            end else begin
+                category = NORMAL_WO_ZERO;
+            end
+        end
+    endtask
+
+    // DUT instance
     fp32_mul dut (
         .clk(clk),
         .rst_n(rst_n),
-        .a(a),
-        .b(b),
         .in_valid(in_valid),
+        .a(dut_a),
+        .b(dut_b),
         .out_valid(out_valid),
-        .result(result)
+        .result(dut_result)
     );
     
     // Clock generation
@@ -125,17 +142,13 @@ module fp32_mul_tb;
     initial begin
         $dumpfile("dump.vcd");
         $dumpvars(0, fp32_mul_tb);
-        $dumpvars(0, fp32_mul_tb.in_valid);
-        $dumpvars(0, fp32_mul_tb.out_valid);
-        $dumpvars(0, fp32_mul_tb.dut.in_valid);
-        $dumpvars(0, fp32_mul_tb.dut.out_valid);
     end
     
     // Initialize test cases
     task init_test_cases;
         integer idx;
         reg [31:0] test_a, test_b, expected;
-        reg [1:0] category;  // Local variable for file reading
+        reg [31:0] file_category;  // Add declaration for file_category
         integer file;
         reg [8*100:1] line;
         
@@ -148,17 +161,30 @@ module fp32_mul_tb;
 
         // Read test cases
         num_test_cases = 0;
+        test_index = 0;  // Initialize test_index
         while (!$feof(file)) begin
             // Skip comments and empty lines
             $fgets(line, file);
             if (line[0] != "/" && line[0] != "\n" && line[0] != "\r") begin
                 // Parse the line
-                if ($sscanf(line, "%d %h %h", category, test_a, test_b) == 3) begin
-                    test_cases_mem[num_test_cases] = {test_a, test_b, category};  // Add padding for 96-bit alignment
-                    // $display("Debug: test_cases_mem[num_test_cases] = %h", test_cases_mem[num_test_cases]);
+                if ($sscanf(line, "%d %h %h", file_category, test_a, test_b) == 3) begin
+                    get_test_category(test_a, test_b, category);  // Calculate category using task
+                    
+                    // Verify category matches
+                    if (category !== file_category) begin
+                        $display("Error: Category mismatch for test case %0d:", test_index);
+                        $display("  File category: %0d (%s)", file_category, get_category_name(file_category));
+                        $display("  Calculated category: %0d (%s)", category, get_category_name(category));
+                        $display("  A: %h", test_a);
+                        $display("  B: %h", test_b);
+                        $finish;
+                    end
+                    
+                    test_cases_mem[num_test_cases] = {category, test_a, test_b};  // Store category in upper 32 bits
                     num_test_cases = num_test_cases + 1;
-                    $display("Debug: Test case %0d: Category=%0d A=%h B=%h", 
-                            num_test_cases-1, category, test_a, test_b);
+                    test_index = test_index + 1;  // Increment test_index
+                    $display("Debug: Test case %0d: Category=%0d (%s) A=%h B=%h", 
+                            test_index-1, category, get_category_name(category), test_a, test_b);
                 end
             end
         end
@@ -324,8 +350,8 @@ module fp32_mul_tb;
     initial begin
         // Initialize
         rst_n = 0;
-        a = 32'h00000000;
-        b = 32'h00000000;
+        dut_a = 32'h00000000;
+        dut_b = 32'h00000000;
         total_tests = 0;
         passed_tests = 0;
         failed_tests = 0;
@@ -360,69 +386,90 @@ module fp32_mul_tb;
         
         // Run all test cases
         $display("\n=== Running Tests ===");
+        current_test_idx = 0;  // Initialize current_test_idx
         for (integer i = 0; i < num_test_cases; i = i + 1) begin
+            current_test_idx = i;  // Update current_test_idx for waveform
+            // Get test case data
+            read_a = test_cases_mem[i][31:0];
+            read_b = test_cases_mem[i][63:32];
+            category = test_cases_mem[i][95:64];
+            
             // Apply test case on negedge
             @(negedge clk);
-            a = test_cases_mem[i][2+32+31:2+32];
-            b = test_cases_mem[i][2+31:2+0];
-            test_category = test_cases_mem[i][1:0];
-            in_valid = 1;
+            dut_a = read_a;  // Assign to DUT input
+            dut_b = read_b;  // Assign to DUT input
+            in_valid = 1'b1;
+            $display("Debug: Test %0d - Applied inputs: A=%h, B=%h, in_valid=%d, %t", i, dut_a, dut_b, in_valid, $time);
             
             // Wait for result
             @(negedge clk);
-            in_valid = 0;
-            wait(out_valid);
+            in_valid = 1'b0;
+            wait_counter = 0;
+            $display("Debug: Test %0d - Waiting for out_valid...after in_valid=%d, %t", i, in_valid, $time);
             
-            // Check result on negedge
-            @(negedge clk);
+            @(posedge clk);
+            $display("Debug: Test %0d - next_clock", i);
+
+            // Wait for out_valid with timeout
+            while (!out_valid && wait_counter < 10) begin
+                @(negedge clk);
+                wait_counter += 1;
+            end
+            
+            if (!out_valid) begin
+                $display("Error: Test %0d - out_valid did not assert within timeout", i);
+                $finish;
+            end
+            $display("Debug: Test %0d - out_valid asserted", i);
+            
+            // Wait for one more clock edge to ensure result is stable
+            @(posedge clk);
+            read_result = dut_result;
+            actual_results_mem[i] = read_result;  // Store the actual result
+            $display("Debug: Test %0d - Captured result: %h", i, read_result);
+
+            // Get expected result
             expected_result = expected_results_mem[i];
-            if (result === expected_result) begin
+            
+            // Update category statistics first, regardless of pass/fail
+            case (category)
+                NORMAL_WO_ZERO: normal_wo_zero_total = normal_wo_zero_total + 1;
+                NORMAL_W_ZERO: normal_w_zero_total = normal_w_zero_total + 1;
+                INF_CASE: inf_total = inf_total + 1;
+                NAN_CASE: nan_total = nan_total + 1;
+                OVERFLOW: overflow_total = overflow_total + 1;
+                UNDERFLOW: underflow_total = underflow_total + 1;
+                DENORMAL: denormal_total = denormal_total + 1;
+                default: $display("Warning: Unknown test category %0d", category);
+            endcase
+
+            if (read_result === expected_result) begin
                 passed_tests = passed_tests + 1;
-                case (test_category)
-                    NORMAL_WO_ZERO: begin
-                        normal_wo_zero_total = normal_wo_zero_total + 1;
-                        normal_wo_zero_passed = normal_wo_zero_passed + 1;
-                    end
-                    NORMAL_W_ZERO: begin
-                        normal_w_zero_total = normal_w_zero_total + 1;
-                        normal_w_zero_passed = normal_w_zero_passed + 1;
-                    end
-                    INF_CASE: begin
-                        inf_total = inf_total + 1;
-                        inf_passed = inf_passed + 1;
-                    end
-                    NAN_CASE: begin
-                        nan_total = nan_total + 1;
-                        nan_passed = nan_passed + 1;
-                    end
-                    OVERFLOW: begin
-                        overflow_total = overflow_total + 1;
-                        overflow_passed = overflow_passed + 1;
-                    end
-                    UNDERFLOW: begin
-                        underflow_total = underflow_total + 1;
-                        underflow_passed = underflow_passed + 1;
-                    end
-                    DENORMAL: begin
-                        denormal_total = denormal_total + 1;
-                        denormal_passed = denormal_passed + 1;
-                    end
+                case (category)
+                    NORMAL_WO_ZERO: normal_wo_zero_passed = normal_wo_zero_passed + 1;
+                    NORMAL_W_ZERO: normal_w_zero_passed = normal_w_zero_passed + 1;
+                    INF_CASE: inf_passed = inf_passed + 1;
+                    NAN_CASE: nan_passed = nan_passed + 1;
+                    OVERFLOW: overflow_passed = overflow_passed + 1;
+                    UNDERFLOW: underflow_passed = underflow_passed + 1;
+                    DENORMAL: denormal_passed = denormal_passed + 1;
                 endcase
-                $display("Test %0d PASSED: A=%h(%s) B=%h(%s) Expected=%h(%s) Got=%h(%s)",
-                        i, a, format_real_with_sign(bits_to_real(a), a), 
-                        b, format_real_with_sign(bits_to_real(b), b),
+                $display("Test %0d PASSED [Category: %s]: A=%h(%s) B=%h(%s) Expected=%h(%s) Got=%h(%s)",
+                        i, get_category_name(category),
+                        read_a, format_real_with_sign(bits_to_real(read_a), read_a), 
+                        read_b, format_real_with_sign(bits_to_real(read_b), read_b),
                         expected_result, format_real_with_sign(bits_to_real(expected_result), expected_result),
-                        result, format_real_with_sign(bits_to_real(result), result));
+                        actual_results_mem[i], format_real_with_sign(bits_to_real(actual_results_mem[i]), actual_results_mem[i]));
             end else begin
                 failed_tests = failed_tests + 1;
                 if (first_failed_idx == -1) begin
                     first_failed_idx = i;  // Record first failed test case
                 end
-                $display("\nTest %0d FAILED:", i);
-                $display("  A = %h (%s)", a, format_real_with_sign(bits_to_real(a), a));
-                $display("  B = %h (%s)", b, format_real_with_sign(bits_to_real(b), b));
+                $display("\nTest %0d FAILED [Category: %s]:", i, get_category_name(category));
+                $display("  A = %h (%s)", read_a, format_real_with_sign(bits_to_real(read_a), read_a));
+                $display("  B = %h (%s)", read_b, format_real_with_sign(bits_to_real(read_b), read_b));
                 $display("  Expected = %h (%s)", expected_result, format_real_with_sign(bits_to_real(expected_result), expected_result));
-                $display("  Got = %h (%s)", result, format_real_with_sign(bits_to_real(result), result));
+                $display("  Got = %h (%s)", actual_results_mem[i], format_real_with_sign(bits_to_real(actual_results_mem[i]), actual_results_mem[i]));
             end
             total_tests = total_tests + 1;
             
@@ -456,12 +503,28 @@ module fp32_mul_tb;
                     format_real_with_sign(bits_to_real(test_cases_mem[first_failed_idx][31:0]), test_cases_mem[first_failed_idx][31:0]));
             $display("  Expected = %h (%s)", expected_results_mem[first_failed_idx], 
                     format_real_with_sign(bits_to_real(expected_results_mem[first_failed_idx]), expected_results_mem[first_failed_idx]));
-            $display("  Got = %h (%s)", result, format_real_with_sign(bits_to_real(result), result));
+            $display("  Got = %h (%s)", actual_results_mem[first_failed_idx], 
+                    format_real_with_sign(bits_to_real(actual_results_mem[first_failed_idx]), actual_results_mem[first_failed_idx]));
         end
         
         // End simulation
         #100;
         $finish;
     end
+
+    // Function to get category name
+    function string get_category_name;
+        input [31:0] category;
+        case (category)
+            NORMAL_WO_ZERO: return "NORMAL_WO_ZERO";
+            NORMAL_W_ZERO:  return "NORMAL_W_ZERO";
+            INF_CASE:      return "INF_CASE";
+            NAN_CASE:      return "NAN_CASE";
+            OVERFLOW:      return "OVERFLOW";
+            UNDERFLOW:     return "UNDERFLOW";
+            DENORMAL:      return "DENORMAL";
+            default:       return "UNKNOWN";
+        endcase
+    endfunction
 
 endmodule
