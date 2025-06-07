@@ -53,3 +53,6 @@ npu_system/mac_array_sim/test_fp32_expected.txt
 # Ignore VCD and GTKW files
 *.vcd
 *.gtkw
+
+# Ignore executable files
+npu_system/mac_array_sim/fp32_ref_model_exec.exe
