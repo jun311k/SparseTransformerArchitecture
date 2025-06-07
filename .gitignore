@@ -49,3 +49,7 @@ npu_system/mac_array_sim/dump.vcd
 # Ignore test output files
 npu_system/mac_array_sim/test_fp32_refc_details.txt
 npu_system/mac_array_sim/test_fp32_expected.txt
+
+# Ignore VCD and GTKW files
+*.vcd
+*.gtkw
