@@ -412,12 +412,12 @@ module fp32_mul (
         end
     end
 
-    // Debug prints for Test 40
+    // Debug prints for Test 100
     reg [3:0] debug_stage;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             debug_stage <= 4'd0;
-        end else if (current_test_index == 8'd40) begin
+        end else if (current_test_index == 8'd100) begin
             if (in_valid) debug_stage <= 4'd1;
             else if (s1_in_valid_reg) debug_stage <= 4'd2;
             else if (s2_in_valid_reg) debug_stage <= 4'd3;
@@ -426,11 +426,12 @@ module fp32_mul (
         end
     end
 
+    // synthesis translate_off
     always @(posedge clk) begin
-        if (current_test_index == 8'd40) begin
+        if (current_test_index == 8'd100) begin
             case (debug_stage)
                 4'd1: begin
-                    $display("\n=== Test 40 Pipeline Stage 1 (Input) ===");
+                    $display("\n=== Test 100 Pipeline Stage 1 (Input) ===");
                     $display("  Input values:");
                     $display("    a = %h, b = %h", a, b);
                     $display("    a_sign = %b, b_sign = %b", a_sign, b_sign);
@@ -443,7 +444,7 @@ module fp32_mul (
                     $display("=== End Stage 1 ===\n");
                 end
                 4'd2: begin
-                    $display("\n=== Test 40 Pipeline Stage 2 (Calculation) ===");
+                    $display("\n=== Test 100 Pipeline Stage 2 (Calculation) ===");
                     $display("  Stage 1 registered values:");
                     $display("    a_mant_std = %h, b_mant_std = %h", s1_a_mant_std_reg, s1_b_mant_std_reg);
                     $display("    a_is_subnormal = %b, b_is_subnormal = %b", s1_a_is_subnormal_reg, s1_b_is_subnormal_reg);
@@ -461,7 +462,7 @@ module fp32_mul (
                     $display("=== End Stage 2 ===\n");
                 end
                 4'd3: begin
-                    $display("\n=== Test 40 Pipeline Stage 3 (Normalization) ===");
+                    $display("\n=== Test 100 Pipeline Stage 3 (Normalization) ===");
                     $display("  Stage 2 registered values:");
                     $display("    res_sign = %b", s2_res_sign_reg);
                     $display("    res_exp_provisional = %d", s2_res_exp_provisional_reg);
@@ -479,12 +480,13 @@ module fp32_mul (
                     $display("=== End Stage 3 ===\n");
                 end
                 4'd4: begin
-                    $display("\n=== Test 40 Pipeline Stage 4 (Output) ===");
+                    $display("\n=== Test 100 Pipeline Stage 4 (Output) ===");
                     $display("  Final result = %h", result);
                     $display("=== End Stage 4 ===\n");
                 end
             endcase
         end
     end
+    // synthesis translate_on
 
 endmodule

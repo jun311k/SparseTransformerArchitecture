@@ -7,6 +7,7 @@
 0 40000000 3F800000  // 2.0 * 1.0 = 2.0
 0 BF800000 40000000  // -1.0 * 2.0 = -2.0
 0 40000000 BF800000  // 2.0 * -1.0 = -2.0
+0 3F800000 3F800000  // 1.0 * 1.0 = 1.0 (no rounding needed)
 
 // Small numbers
 0 3F000000 3F000000  // 0.5 * 0.5 = 0.25
@@ -25,7 +26,10 @@
 
 // Precision tests
 0 3F7FFFFF 3F7FFFFF  // 0.9999999 * 0.9999999
-0 3F800001 3F800001  // 1.0000001 * 1.0000001
+9 3F800001 3F800001  // 1.0000001 * 1.0000001 (round to even)
+9 3F800002 3F800002  // 1.0000002 * 1.0000002 (round up)
+9 3F800003 3F800003  // 1.0000003 * 1.0000003 (round to even)
+9 3F800004 3F800004  // 1.0000004 * 1.0000004 (round down)
 0 40490FDB 40490FDB  // PI * PI
 
 // 2. Normal Numbers (with zero)
@@ -67,3 +71,57 @@
 5 80800000 80800000  // -Min normal * -Min normal = 0.0 (underflow)
 5 00000001 00000001  // Min subnormal * Min subnormal = 0.0 (underflow)
 5 80000001 80000001  // -Min subnormal * -Min subnormal = 0.0 (underflow)
+
+// 8. Denormal Numbers
+0 00800001 3F800000  // Normal * 1.0 = Normal result
+0 80800001 3F800000  // -Normal * 1.0 = Normal result
+5 00800001 00800001  // Denormal * Denormal = Underflow (flush to zero)
+5 80800001 80800001  // -Denormal * -Denormal = Underflow (flush to zero)
+1 00800001 00000000  // Normal * 0.0 = 0.0
+1 80800001 80000000  // -Normal * -0.0 = 0.0
+2 00800001 7F800000  // Normal * +inf = +inf
+2 80800001 FF800000  // -Normal * -inf = +inf
+3 00800001 7FC00000  // Normal * +nan = nan
+3 80800001 FFC00000  // -Normal * -nan = nan
+
+// 9. Infinity and NaN Combinations
+7 7F800000 7F800000  // +inf * +inf = +inf
+7 FF800000 FF800000  // -inf * -inf = +inf
+7 7F800000 FF800000  // +inf * -inf = -inf
+7 FF800000 7F800000  // -inf * +inf = -inf
+7 7FC00000 7FC00000  // +nan * +nan = +nan
+7 FFC00000 FFC00000  // -nan * -nan = -nan
+7 7FC00000 FFC00000  // +nan * -nan = +nan
+7 FFC00000 7FC00000  // -nan * +nan = +nan
+7 7F800000 7FC00000  // +inf * +nan = +nan
+7 FF800000 FFC00000  // -inf * -nan = +nan
+
+// 10. Edge Cases Near Thresholds
+4 7F7FFFFF 3F800000  // max normal * 1.0 = overflow (inf)
+8 7F7FFFFF 3F7FFFFF  // Max normal * 0.9999999
+8 00800000 3F800000  // Min normal * 1.0 (edge case at normal/subnormal boundary)
+8 00800000 3F7FFFFF  // Min normal * 0.9999999
+10 00000001 3F800000  // Min subnormal * 1.0 = Min subnormal (subnormal result)
+10 00000001 3F7FFFFF  // Min subnormal * 0.9999999
+
+// 11. Rounding Cases
+0 3F800000 3F800000  // 1.0 * 1.0 (no rounding needed)
+//9 3F800001 3F800001  // 1.0000001 * 1.0000001 (round to even)
+//9 3F800002 3F800002  // 1.0000002 * 1.0000002 (round up)
+//9 3F800003 3F800003  // 1.0000003 * 1.0000003 (round to even)
+//9 3F800004 3F800004  // 1.0000004 * 1.0000004 (round down)
+//
+//// 12. Subnormal Results
+//10 3F000000 00800000  // 0.5 * min normal = subnormal
+//10 3F000000 00800001  // 0.5 * min denormal = subnormal
+//10 3E800000 00800000  // 0.25 * min normal = subnormal
+//10 3E800000 00800001  // 0.25 * min denormal = subnormal
+//
+//// 13. Maximum Normalization Shifts
+//11 3F800000 00800000  // 1.0 * min normal (max right shift)
+//11 3F800000 00000001  // 1.0 * min subnormal (max right shift)
+//11 00800000 00800000  // min normal * min normal (max left shift)
+//11 00000001 00000001  // min subnormal * min subnormal (max left shift)
+//
+//// Test Case 49: Denormal * Denormal = Underflow (flush to zero)
+//5 00800001 00800001 00000000 # Denormal * Denormal = Underflow (flush to zero)

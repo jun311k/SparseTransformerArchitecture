@@ -36,6 +36,11 @@ module fp32_mul_tb;
     localparam OVERFLOW      = 32'd4;  // Overflow cases
     localparam UNDERFLOW     = 32'd5;  // Underflow cases
     localparam DENORMAL      = 32'd6;  // Denormal cases
+    localparam INF_NAN_COMB  = 32'd7;  // Infinity and NaN combinations
+    localparam EDGE_THRESHOLD = 32'd8; // Edge cases near thresholds
+    localparam ROUNDING      = 32'd9;  // Rounding cases
+    localparam SUBNORMAL_RESULT = 32'd10; // Subnormal results
+    localparam MAX_SHIFT     = 32'd11; // Maximum normalization shifts
     
     // Test category tracking
     integer normal_wo_zero_total = 0;
@@ -52,6 +57,16 @@ module fp32_mul_tb;
     integer underflow_passed = 0;
     integer denormal_total = 0;
     integer denormal_passed = 0;
+    integer inf_nan_comb_total = 0;
+    integer inf_nan_comb_passed = 0;
+    integer edge_threshold_total = 0;
+    integer edge_threshold_passed = 0;
+    integer rounding_total = 0;
+    integer rounding_passed = 0;
+    integer subnormal_result_total = 0;
+    integer subnormal_result_passed = 0;
+    integer max_shift_total = 0;
+    integer max_shift_passed = 0;
     
     // Test statistics
     integer total_tests;
@@ -72,10 +87,22 @@ module fp32_mul_tb;
         input [31:0] b,
         output [31:0] category
     );
+        // Debug prints for input values
+        $display("\n=== Debug: Test Case Classification ===");
+        $display("Input A: %h (exp: %h, mant: %h)", a, a[30:23], a[22:0]);
+        $display("Input B: %h (exp: %h, mant: %h)", b, b[30:23], b[22:0]);
+
+        // Check for Infinity and NaN combinations
+        if ((a[30:23] == 8'hFF && b[30:23] == 8'hFF) ||
+            ((a[30:23] == 8'hFF && a[22:0] != 0 && b[30:23] == 8'hFF && b[22:0] != 0))) begin
+            category = INF_NAN_COMB;
+            $display("Category: INF_NAN_COMB (Infinity and NaN combination)");
+        end
         // Check for NaN
-        if ((a[30:23] == 8'hFF && a[22:0] != 0) || 
-            (b[30:23] == 8'hFF && b[22:0] != 0)) begin
+        else if ((a[30:23] == 8'hFF && a[22:0] != 0) || 
+                 (b[30:23] == 8'hFF && b[22:0] != 0)) begin
             category = NAN_CASE;
+            $display("Category: NAN_CASE (NaN input)");
         end
         // Check for Infinity * zero (results in NaN)
         else if (((a[30:23] == 8'hFF && a[22:0] == 0) || 
@@ -83,42 +110,127 @@ module fp32_mul_tb;
                 ((a == 32'h00000000 || a == 32'h80000000) ||
                  (b == 32'h00000000 || b == 32'h80000000))) begin
             category = NAN_CASE;
+            $display("Category: NAN_CASE (Infinity * zero)");
         end
         // Check for Infinity
         else if ((a[30:23] == 8'hFF && a[22:0] == 0) || 
                  (b[30:23] == 8'hFF && b[22:0] == 0)) begin
             category = INF_CASE;
+            $display("Category: INF_CASE (Infinity input)");
         end
         // Check for zero
         else if (a == 32'h00000000 || a == 32'h80000000 ||
                  b == 32'h00000000 || b == 32'h80000000) begin
-            category = NORMAL_W_ZERO;
+            // If one input is subnormal and other is zero, classify as SUBNORMAL_RESULT
+            reg a_is_denormal, b_is_denormal;
+            a_is_denormal = (a[30:23] == 8'h00 && a[22:0] != 0);
+            b_is_denormal = (b[30:23] == 8'h00 && b[22:0] != 0);
+
+            if (a_is_denormal || b_is_denormal) begin
+                category = SUBNORMAL_RESULT;
+                $display("Category: SUBNORMAL_RESULT (Subnormal * Zero)");
+            end else begin
+                category = NORMAL_W_ZERO;
+                $display("Category: NORMAL_W_ZERO (Normal * Zero)");
+            end
         end
-        // Check for potential overflow/underflow (IEEE 754 방식)
+        // Check for denormal numbers and calculate actual exponents
         else begin
             reg [15:0] exp_sum;
             reg [47:0] mant_prod;
-            exp_sum = a[30:23] + b[30:23] - 127;
-            //$display("Debug - A: %h, B: %h", a, b);
-            //$display("Debug - A exp: %d, B exp: %d", a[30:23], b[30:23]);
-            //$display("Debug - Initial exp_sum: %0d (bin: %b, width: %0d)", exp_sum, exp_sum, $bits(exp_sum));
+            reg [7:0] a_actual_exp, b_actual_exp;
+            reg a_is_denormal, b_is_denormal;
 
-            if (exp_sum[15] == 1'b1 || a[30:23] == 8'h00 || b[30:23] == 8'h00) begin
+            // Check for denormal numbers
+            a_is_denormal = (a[30:23] == 8'h00 && a[22:0] != 0) || 
+                           (a[30:23] == 8'h01 && a[22:0] != 0 && a[22:0] < 23'h800000);
+            b_is_denormal = (b[30:23] == 8'h00 && b[22:0] != 0) || 
+                           (b[30:23] == 8'h01 && b[22:0] != 0 && b[22:0] < 23'h800000);
+
+            // Calculate actual exponents considering denormal numbers
+            a_actual_exp = a_is_denormal ? 8'h01 : a[30:23];
+            b_actual_exp = b_is_denormal ? 8'h01 : b[30:23];
+            exp_sum = a_actual_exp + b_actual_exp - 127;
+
+            $display("Actual exponents - A: %h, B: %h", a_actual_exp, b_actual_exp);
+            $display("Exponent sum: %d", exp_sum);
+            $display("Denormal flags - A: %b, B: %b", a_is_denormal, b_is_denormal);
+
+            // If both inputs are denormal, result will be underflow
+            if (a_is_denormal && b_is_denormal) begin
                 category = UNDERFLOW;
-            end else if (exp_sum > 254) begin
+                $display("Category: UNDERFLOW (Both inputs are denormal, result will be zero)");
+            end
+            // If one input is denormal and result exponent is in denormal range
+            else if (a_is_denormal || b_is_denormal) begin
+                if (exp_sum < 0) begin
+                    category = UNDERFLOW;
+                    $display("Category: UNDERFLOW (Denormal input with negative result exponent)");
+                end else if (a_is_denormal || b_is_denormal) begin
+                    category = SUBNORMAL_RESULT;
+                    $display("Category: SUBNORMAL_RESULT (Subnormal operation)");
+                end else begin
+                    category = DENORMAL;
+                    $display("Category: DENORMAL (Denormal input with non-negative result exponent)");
+                end
+            end
+            // Check for underflow from normal inputs
+            else if (exp_sum[15] == 1'b1) begin
+                category = UNDERFLOW;
+                $display("Category: UNDERFLOW (Normal inputs with negative result exponent)");
+            end
+            // Check for overflow
+            else if (exp_sum > 254) begin
                 category = OVERFLOW;
-            end else if (exp_sum == 254) begin
+                $display("Category: OVERFLOW (Result exponent too large)");
+            end
+            // Check for edge case near overflow
+            else if (exp_sum == 254) begin
                 mant_prod = {1'b1, a[22:0]} * {1'b1, b[22:0]};
-                //$display("Debug - mant_prod: %h", mant_prod);
-                //$display("Debug - mant_prod[47:46]: %b", mant_prod[47:46]);
-                if (mant_prod[47:46] != 2'b00)
+                if (mant_prod[47:46] != 2'b00) begin
                     category = OVERFLOW;
-                else
+                    $display("Category: OVERFLOW (Edge case with mantissa overflow)");
+                end else begin
                     category = NORMAL_WO_ZERO;
-            end else begin
-                category = NORMAL_WO_ZERO;
+                    $display("Category: NORMAL_WO_ZERO (Edge case without mantissa overflow)");
+                end
+            end
+            // Check other cases
+            else begin
+                // Check for edge cases near thresholds
+                if (a == 32'h00800000 || b == 32'h00800000 ||  // min normal
+                    (a == 32'h7f7fffff && b == 32'h3f7fffff) ||  // max normal * 0.9999999
+                    (b == 32'h7f7fffff && a == 32'h3f7fffff)) begin
+                    category = EDGE_THRESHOLD;
+                    $display("Category: EDGE_THRESHOLD (Edge case near threshold)");
+                end
+                // Check for rounding cases - only for specific test cases
+                else if ((a == 32'h3F800001 && b == 32'h3F800001) ||  // 1.0000001 * 1.0000001
+                         (a == 32'h3F800002 && b == 32'h3F800002) ||  // 1.0000002 * 1.0000002
+                         (a == 32'h3F800003 && b == 32'h3F800003) ||  // 1.0000003 * 1.0000003
+                         (a == 32'h3F800004 && b == 32'h3F800004)) begin  // 1.0000004 * 1.0000004
+                    category = ROUNDING;
+                    $display("Category: ROUNDING (Specific rounding test case)");
+                end
+                // Check for subnormal results
+                else if ((a[30:23] == 8'h7F && b[30:23] == 8'h00) ||
+                         (a[30:23] == 8'h00 && b[30:23] == 8'h7F)) begin
+                    category = SUBNORMAL_RESULT;
+                    $display("Category: SUBNORMAL_RESULT (Subnormal result)");
+                end
+                // Check for maximum shift cases
+                else if ((a[30:23] == 8'h7F && b[30:23] == 8'h00) ||
+                         (a[30:23] == 8'h00 && b[30:23] == 8'h00)) begin
+                    category = MAX_SHIFT;
+                    $display("Category: MAX_SHIFT (Maximum shift case)");
+                end
+                else begin
+                    category = NORMAL_WO_ZERO;
+                    $display("Category: NORMAL_WO_ZERO (Default case)");
+                end
             end
         end
+        $display("=== End Debug ===\n");
     endtask
 
     // DUT instance
@@ -401,6 +513,16 @@ module fp32_mul_tb;
         underflow_passed = 0;
         denormal_total = 0;
         denormal_passed = 0;
+        inf_nan_comb_total = 0;
+        inf_nan_comb_passed = 0;
+        edge_threshold_total = 0;
+        edge_threshold_passed = 0;
+        rounding_total = 0;
+        rounding_passed = 0;
+        subnormal_result_total = 0;
+        subnormal_result_passed = 0;
+        max_shift_total = 0;
+        max_shift_passed = 0;
         in_valid = 0;
         first_failed_idx = -1;  // Initialize first failed index
 
@@ -470,6 +592,11 @@ module fp32_mul_tb;
                 OVERFLOW: overflow_total = overflow_total + 1;
                 UNDERFLOW: underflow_total = underflow_total + 1;
                 DENORMAL: denormal_total = denormal_total + 1;
+                INF_NAN_COMB: inf_nan_comb_total = inf_nan_comb_total + 1;
+                EDGE_THRESHOLD: edge_threshold_total = edge_threshold_total + 1;
+                ROUNDING: rounding_total = rounding_total + 1;
+                SUBNORMAL_RESULT: subnormal_result_total = subnormal_result_total + 1;
+                MAX_SHIFT: max_shift_total = max_shift_total + 1;
                 default: $display("Warning: Unknown test category %0d", category);
             endcase
 
@@ -483,6 +610,11 @@ module fp32_mul_tb;
                     OVERFLOW: overflow_passed = overflow_passed + 1;
                     UNDERFLOW: underflow_passed = underflow_passed + 1;
                     DENORMAL: denormal_passed = denormal_passed + 1;
+                    INF_NAN_COMB: inf_nan_comb_passed = inf_nan_comb_passed + 1;
+                    EDGE_THRESHOLD: edge_threshold_passed = edge_threshold_passed + 1;
+                    ROUNDING: rounding_passed = rounding_passed + 1;
+                    SUBNORMAL_RESULT: subnormal_result_passed = subnormal_result_passed + 1;
+                    MAX_SHIFT: max_shift_passed = max_shift_passed + 1;
                 endcase
                 $display("Test %0d PASSED [Category: %s]: A=%h(%s) B=%h(%s) Expected=%h(%s) Got=%h(%s)",
                         i, get_category_name(category),
@@ -522,6 +654,11 @@ module fp32_mul_tb;
         $display("Overflow cases: %0d/%0d passed", overflow_passed, overflow_total);
         $display("Underflow cases: %0d/%0d passed", underflow_passed, underflow_total);
         $display("Denormal cases: %0d/%0d passed", denormal_passed, denormal_total);
+        $display("Infinity and NaN combinations: %0d/%0d passed", inf_nan_comb_passed, inf_nan_comb_total);
+        $display("Edge cases near thresholds: %0d/%0d passed", edge_threshold_passed, edge_threshold_total);
+        $display("Rounding cases: %0d/%0d passed", rounding_passed, rounding_total);
+        $display("Subnormal results: %0d/%0d passed", subnormal_result_passed, subnormal_result_total);
+        $display("Maximum normalization shifts: %0d/%0d passed", max_shift_passed, max_shift_total);
         
         // Print first failed test case again
         if (first_failed_idx != -1) begin
@@ -545,16 +682,23 @@ module fp32_mul_tb;
     // Function to get category name
     function string get_category_name;
         input [31:0] category;
+        begin
             case (category)
-            NORMAL_WO_ZERO: return "NORMAL_WO_ZERO";
-            NORMAL_W_ZERO:  return "NORMAL_W_ZERO";
-            INF_CASE:      return "INF_CASE";
-            NAN_CASE:      return "NAN_CASE";
-            OVERFLOW:      return "OVERFLOW";
-            UNDERFLOW:     return "UNDERFLOW";
-            DENORMAL:      return "DENORMAL";
-            default:       return "UNKNOWN";
+                NORMAL_WO_ZERO: get_category_name = "NORMAL_WO_ZERO";
+                NORMAL_W_ZERO:  get_category_name = "NORMAL_W_ZERO";
+                INF_CASE:      get_category_name = "INF_CASE";
+                NAN_CASE:      get_category_name = "NAN_CASE";
+                OVERFLOW:      get_category_name = "OVERFLOW";
+                UNDERFLOW:     get_category_name = "UNDERFLOW";
+                DENORMAL:      get_category_name = "DENORMAL";
+                INF_NAN_COMB:  get_category_name = "INF_NAN_COMB";
+                EDGE_THRESHOLD: get_category_name = "EDGE_THRESHOLD";
+                ROUNDING:      get_category_name = "ROUNDING";
+                SUBNORMAL_RESULT: get_category_name = "SUBNORMAL_RESULT";
+                MAX_SHIFT:     get_category_name = "MAX_SHIFT";
+                default:       get_category_name = "UNKNOWN";
             endcase
+        end
     endfunction
 
 endmodule
