@@ -57,3 +57,5 @@ npu_system/mac_array_sim/test_fp32_expected.txt
 # Ignore executable files
 npu_system/mac_array_sim/fp32_ref_model_exec.exe
 npu_system/mac_array_sim/fp32_mul_sim
+npu_system/mac_array_sim/sim.out
+npu_system/mac_array_sim/simv
