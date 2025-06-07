@@ -1,101 +1,72 @@
-# BF16 Multiplier Simulation Environment
+# FP32 Multiplier Simulation
 
-This directory contains the simulation environment for the BF16 multiplier implementation using Icarus Verilog and GTKWave.
+This directory contains the simulation environment for the FP32 multiplier implementation.
 
 ## Directory Structure
+
 ```
 mac_array_sim/
-├── bf16_multiplier_tb.v    # Testbench for BF16 multiplier
-├── run_sim.sh             # Simulation run script
-└── README.md             # This file
-```
-
-## Simulation Setup
-
-### Prerequisites
-- Icarus Verilog (iverilog)
-- GTKWave
-- Bash shell
-
-### Installation
-
-#### macOS (using Homebrew):
-```bash
-brew install icarus-verilog
-brew install gtkwave
-```
-
-#### Ubuntu/Debian:
-```bash
-sudo apt-get install iverilog gtkwave
-```
-
-#### Windows:
-1. Install Icarus Verilog from: http://bleyer.org/icarus/
-2. Install GTKWave from: http://gtkwave.sourceforge.net/
-
-### Running Simulation
-
-1. Make the run script executable:
-```bash
-chmod +x run_sim.sh
-```
-
-2. Run the simulation:
-```bash
-./run_sim.sh
-```
-
-This will:
-- Compile the design and testbench
-- Run the simulation
-- Generate a VCD file
-- Open GTKWave to view the waveforms
-
-### Manual Steps
-
-If you prefer to run the simulation manually:
-
-1. Compile the design:
-```bash
-iverilog -o sim.out ../mac_array/bf16_multiplier.v bf16_multiplier_tb.v
-```
-
-2. Run the simulation:
-```bash
-vvp sim.out
-```
-
-3. View waveforms:
-```bash
-gtkwave dump.vcd
+├── fp32_mul_tb.sv          # Main testbench
+├── fp32_ref_model.c        # C reference model
+├── test_fp32_inputs.txt    # Test cases
+├── test_fp32_expected.txt  # Expected results
+├── run_sim_fp32_mul.ps1    # PowerShell script for Windows
+├── run_sim_fp32_mul.bat    # Batch script for Windows
+└── run_sim_fp32_mul.sh     # Shell script for Unix-like systems
 ```
 
 ## Test Cases
 
-The testbench includes the following test cases:
-1. Normal numbers (1.0 * 2.0 = 2.0)
-2. Negative numbers (-1.0 * 2.0 = -2.0)
-3. Small numbers (0.5 * 0.5 = 0.25)
-4. Zero multiplication (0.0 * 1.0 = 0.0)
-5. Infinity handling (inf * 1.0 = inf)
-6. NaN handling (NaN * 1.0 = NaN)
+The test cases cover various scenarios:
+- Normal operations without zero
+- Normal operations with zero
+- Special cases (Infinity, NaN)
+- Edge cases
+- Subnormal numbers
 
-## Waveform Viewing in GTKWave
+Each test case includes:
+- Input A (32-bit FP32)
+- Input B (32-bit FP32)
+- Expected result (32-bit FP32)
 
-1. Open the VCD file in GTKWave
-2. In the left panel, expand the testbench module
-3. Select signals to view
-4. Use the toolbar to:
-   - Zoom in/out
-   - Pan left/right
-   - Search for specific times
-   - Save/load signal configurations
+## Running the Simulation
 
-## Debugging Tips
+### Windows (PowerShell)
+```powershell
+.\run_sim_fp32_mul.ps1
+```
 
-1. Check the terminal output for simulation messages
-2. Use GTKWave to inspect signal values
-3. Use the search function in GTKWave to find specific events
-4. Save your signal configuration in GTKWave for future use
-5. Check the test summary at the end of simulation 
+### Windows (Command Prompt)
+```cmd
+run_sim_fp32_mul.bat
+```
+
+### Unix-like Systems
+```bash
+./run_sim_fp32_mul.sh
+```
+
+## Simulation Process
+
+1. The script first compiles and runs the C reference model to generate expected results
+2. Then it compiles the SystemVerilog testbench and DUT using iverilog
+3. Finally, it runs the simulation using vvp
+
+## Output Files
+
+- `dump.vcd`: Waveform file for debugging
+- `test_fp32_expected.txt`: Expected results from C reference model
+- `test_fp32_refc_details.txt`: Detailed output from C reference model
+
+## Requirements
+
+- iverilog (for SystemVerilog simulation)
+- gcc (for C reference model)
+- Python 3.x (for test case generation)
+
+## Notes
+
+- The testbench uses SystemVerilog features for better test case management
+- The C reference model implements IEEE 754 floating-point multiplication
+- Test results are displayed with both hexadecimal and decimal values
+- Special values (-0, +0, -Inf, +Inf, -NaN, +NaN) are properly handled and displayed 
