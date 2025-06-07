@@ -178,12 +178,12 @@ module fp32_mul (
     
     // Normalization and Rounding logic (simplified: flush to zero on underflow)
     // Intermediate signals for normalization
-    reg signed [EXP_BITS+1:0] norm_exp;
+    reg signed [EXP_BITS+3:0] norm_exp; // Extended to 11 bits for better overflow handling
     reg [2*MAN_BITS+1:0]      norm_mant_shifted; // 48 bits
     reg [MAN_BITS-1:0]        final_mant;
     reg [EXP_BITS-1:0]        final_exp;
     reg                       norm_prod_is_zero;
-    reg signed [EXP_BITS+1:0] exp_after_norm_shift;
+    reg signed [EXP_BITS+3:0] exp_after_norm_shift; // Extended to 11 bits
     reg [2*MAN_BITS+1:0]      mant_after_norm_shift;
     reg [5:0]                 left_shift_amount; // Max shift for 48-bit mantissa to bring MSB to bit 46
 
@@ -197,8 +197,6 @@ module fp32_mul (
 
         // Step 2: Normalize mantissa (check for product >= 2.0 or < 1.0)
         // Right shift if product mantissa MSB (bit 47) is 1 (value >= 2.0 * 2^exp)
-        // The product s2_prod_mant_reg has its binary point effectively between bit 46 and 45.
-        // s2_prod_mant_reg[47] is the "2s" place, s2_prod_mant_reg[46] is the "1s" place.
         if (norm_mant_shifted[2*MAN_BITS+1]) begin // Check bit 47
             exp_after_norm_shift = norm_exp + 1;
             mant_after_norm_shift = norm_mant_shifted >> 1;
@@ -311,8 +309,6 @@ module fp32_mul (
         end
 
         // Apply left shift based on calculated amount
-        // These assignments were previously outside this always block, causing multiple-driver issues.
-        // They are now correctly integrated here.
         if (left_shift_amount > 0 && left_shift_amount <= (2*MAN_BITS)+1) begin
             exp_after_norm_shift = exp_after_norm_shift - left_shift_amount;
             mant_after_norm_shift = mant_after_norm_shift << left_shift_amount;
@@ -343,11 +339,16 @@ module fp32_mul (
             final_exp = final_exp + 1;
         end
 
-        if (norm_prod_is_zero || (left_shift_amount > (2*MAN_BITS))) begin // If product was zero or shifted to zero
-            final_exp = EXP_ZERO;
-            final_mant = MAN_ZERO;
-        end else if (final_exp >= EXP_INF_NAN) begin // Overflow
+        // Check for overflow after rounding
+        if (final_exp >= EXP_INF_NAN) begin // Overflow
             final_exp = EXP_INF_NAN;
+            final_mant = MAN_ZERO;
+        end else if (final_exp >= EXP_INF_NAN-1 && rounded_fraction_sum[MAN_BITS]) begin
+            // Additional overflow check for rounding-induced overflow
+            final_exp = EXP_INF_NAN;
+            final_mant = MAN_ZERO;
+        end else if (norm_prod_is_zero || (left_shift_amount > (2*MAN_BITS))) begin // If product was zero or shifted to zero
+            final_exp = EXP_ZERO;
             final_mant = MAN_ZERO;
         end else if (final_exp <= 0) begin // Underflow (Flush to Zero for simplicity)
             final_exp = EXP_ZERO;
