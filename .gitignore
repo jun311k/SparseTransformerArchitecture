@@ -42,3 +42,6 @@ Thumbs.db
 
 # Project specific# "obj_dir" wherever it is located
 obj_dir/
+
+# Ignore simulation dump files
+npu_system/mac_array_sim/dump.vcd
