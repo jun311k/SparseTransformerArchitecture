@@ -84,8 +84,8 @@ module fp32_mul (
     // Pipeline Stage 2 -> Stage 3 Registers
     reg s2_in_valid_reg;
     reg s2_res_sign_reg;
-    reg signed [EXP_BITS+1:0] s2_res_exp_provisional_reg; // Wider for intermediate sum (e.g., 10-bit signed)
-    reg [2*MAN_BITS+1:0] s2_prod_mant_reg; // 48-bit product (2*(23+1)-1 = 47 down to 0)
+    reg signed [EXP_BITS+3:0] s2_res_exp_provisional_reg;  // Extended to 11 bits
+    reg [2*MAN_BITS+1:0] s2_prod_mant_reg;
     reg s2_is_special_case_reg;
     reg [TOT_BITS-1:0] s2_special_result_word_reg;
 
@@ -117,7 +117,7 @@ module fp32_mul (
 
     // STAGE 2: Calculate
     wire s2_res_sign_comb;
-    wire signed [EXP_BITS+1:0] s2_res_exp_provisional_comb;
+    wire signed [EXP_BITS+3:0] s2_res_exp_provisional_comb;  // Extended to 11 bits
     wire [2*MAN_BITS+1:0] s2_prod_mant_comb;
     wire s2_is_special_case_comb;
     wire [TOT_BITS-1:0] s2_special_result_word_comb;
@@ -131,16 +131,25 @@ module fp32_mul (
 
     assign s2_res_sign_comb = s1_a_sign_reg ^ s1_b_sign_reg;
     // E_res_stored = E_a_stored_eff + E_b_stored_eff - bias
-    assign s2_res_exp_provisional_comb = $signed(eff_a_exp_s1) + $signed(eff_b_exp_s1) - $signed(FP_BIAS);
+    assign s2_res_exp_provisional_comb = $signed({3'b000, eff_a_exp_s1}) + $signed({3'b000, eff_b_exp_s1}) - $signed({3'b000, FP_BIAS});
     assign s2_prod_mant_comb = s1_a_mant_std_reg * s1_b_mant_std_reg; // 24b * 24b = 48b
 
     // Special case determination for Stage 2
     wire s2_res_is_nan, s2_res_is_inf, s2_res_is_zero;
+    wire s2_res_is_overflow;
+    
+    // Check for overflow in exponent calculation
+    assign s2_res_is_overflow = (s2_res_exp_provisional_comb > $signed({3'b000, EXP_INF_NAN}));
+
+    // Modified zero detection to handle subnormal numbers correctly
+    assign s2_res_is_zero = (s1_a_is_zero_reg || s1_b_is_zero_reg || 
+                            (s1_a_is_subnormal_reg && s1_b_is_subnormal_reg)) && 
+                            !s2_res_is_nan && !s2_res_is_inf;
+
     assign s2_res_is_nan = s1_a_is_nan_reg || s1_b_is_nan_reg ||
                            (s1_a_is_inf_reg && s1_b_is_zero_reg) ||
                            (s1_b_is_inf_reg && s1_a_is_zero_reg);
-    assign s2_res_is_inf = (s1_a_is_inf_reg || s1_b_is_inf_reg) && !s2_res_is_nan;
-    assign s2_res_is_zero = (s1_a_is_zero_reg || s1_b_is_zero_reg) && !s2_res_is_nan && !s2_res_is_inf;
+    assign s2_res_is_inf = ((s1_a_is_inf_reg || s1_b_is_inf_reg) && !s2_res_is_nan) || s2_res_is_overflow;
 
     assign s2_is_special_case_comb = s2_res_is_nan || s2_res_is_inf || s2_res_is_zero;
 
@@ -156,7 +165,7 @@ module fp32_mul (
         if (!rst_n) begin
             s2_in_valid_reg <= 1'b0;
             s2_res_sign_reg <= 1'b0;
-            s2_res_exp_provisional_reg <= {(EXP_BITS+2){1'b0}};
+            s2_res_exp_provisional_reg <= {(EXP_BITS+4){1'b0}};
             s2_prod_mant_reg <= {(2*MAN_BITS+2){1'b0}};
             s2_is_special_case_reg <= 1'b0;
             s2_special_result_word_reg <= {TOT_BITS{1'b0}};
@@ -347,7 +356,8 @@ module fp32_mul (
             // Additional overflow check for rounding-induced overflow
             final_exp = EXP_INF_NAN;
             final_mant = MAN_ZERO;
-        end else if (norm_prod_is_zero || (left_shift_amount > (2*MAN_BITS))) begin // If product was zero or shifted to zero
+        end else if (norm_prod_is_zero || (left_shift_amount > (2*MAN_BITS)) || 
+                    (s1_a_is_subnormal_reg && s1_b_is_subnormal_reg)) begin // If product was zero, shifted to zero, or both inputs are subnormal
             final_exp = EXP_ZERO;
             final_mant = MAN_ZERO;
         end else if (final_exp <= 0) begin // Underflow (Flush to Zero for simplicity)

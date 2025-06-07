@@ -399,16 +399,16 @@ module fp32_mul_tb;
             dut_a = read_a;  // Assign to DUT input
             dut_b = read_b;  // Assign to DUT input
             in_valid = 1'b1;
-            $display("Debug: Test %0d - Applied inputs: A=%h, B=%h, in_valid=%d, %t", i, dut_a, dut_b, in_valid, $time);
+            // $display("Debug: Test %0d - Applied inputs: A=%h, B=%h, in_valid=%d, %t", i, dut_a, dut_b, in_valid, $time);
             
             // Wait for result
             @(negedge clk);
             in_valid = 1'b0;
             wait_counter = 0;
-            $display("Debug: Test %0d - Waiting for out_valid...after in_valid=%d, %t", i, in_valid, $time);
+            // $display("Debug: Test %0d - Waiting for out_valid...after in_valid=%d, %t", i, in_valid, $time);
             
             @(posedge clk);
-            $display("Debug: Test %0d - next_clock", i);
+            // $display("Debug: Test %0d - next_clock", i);
 
             // Wait for out_valid with timeout
             while (!out_valid && wait_counter < 10) begin
@@ -420,13 +420,13 @@ module fp32_mul_tb;
                 $display("Error: Test %0d - out_valid did not assert within timeout", i);
                 $finish;
             end
-            $display("Debug: Test %0d - out_valid asserted", i);
+            // $display("Debug: Test %0d - out_valid asserted", i);
             
             // Wait for one more clock edge to ensure result is stable
             @(posedge clk);
             read_result = dut_result;
             actual_results_mem[i] = read_result;  // Store the actual result
-            $display("Debug: Test %0d - Captured result: %h", i, read_result);
+            // $display("Debug: Test %0d - Captured result: %h", i, read_result);
 
             // Get expected result
             expected_result = expected_results_mem[i];
