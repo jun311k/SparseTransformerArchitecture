@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
             result = calculate_fp32_c_native_float(a_bits, b_bits);
             fprintf(output_file, "%08X\n", result);
             // write them in floating point format and bits format
-            fprintf(fp_reason, "Line %d (Index %d): Category=%d Input A: %s (%f), Input B: %s (%f), Expected_Result: %08X (%f)\n",
+            fprintf(fp_reason, "Line %d (Index %d): Category=%d Input A: %s (%.6e), Input B: %s (%.6e), Expected_Result: %08X (%.6e)\n",
                     line_count, test_index, category, hex_a, u32_to_float_safe(a_bits),
                     hex_b, u32_to_float_safe(b_bits),
                     result, u32_to_float_safe(result));
