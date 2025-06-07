@@ -235,8 +235,8 @@ module fp32_mul_tb;
         input [31:0] bits;
         real result;
         reg [31:0] temp;
-        integer i;
-        real power;
+        integer i, j;
+        real power, base, bit_value;
         
         // Handle special cases
         if (bits[30:23] == 8'hFF) begin
@@ -280,9 +280,17 @@ module fp32_mul_tb;
             
             // Handle mantissa for subnormal
             result = 0.0;
+            base = 1.0;
+            // Calculate 2^-126 once
+            for (j = 0; j < 126; j = j + 1) begin
+                base = base / 2.0;
+            end
+            
             for (i = 0; i < 23; i = i + 1) begin
                 if (temp[22-i]) begin
-                    result = result + (1.0 / (1 << (i+126)));  // 126 = 127-1 for subnormal
+                    // For subnormal numbers, each bit represents 2^-126 * 2^-i
+                    bit_value = base / (1 << i);
+                    result = result + bit_value;
                 end
             end
             
@@ -314,7 +322,7 @@ module fp32_mul_tb;
         for (i = 0; i < 23; i = i + 1) begin
             if (temp[22-i]) begin
                 result = result + (1.0 / (1 << (i+1)));
-        end
+            end
         end
         
         return result * power;
@@ -323,34 +331,49 @@ module fp32_mul_tb;
     // Function to format real number with sign
     function string format_real_with_sign;
         input real value;
-        input [31:0] bits;  // Add bits parameter to check sign
+        input [31:0] bits;
         string result;
-        if (value == 0.0) begin
-            if (bits[31]) begin  // Check sign bit
-                return "-zero";
+        real abs_value;
+        
+        // Handle special cases
+        if (bits[30:23] == 8'hFF) begin
+            if (bits[22:0] == 0) begin
+                // Infinity
+                if (bits[31]) begin
+                    return "-inf";
+                end else begin
+                    return "+inf";
+                end
             end else begin
-                return "zero";
+                // NaN
+                if (bits[31]) begin
+                    return "-nan";
+                end else begin
+                    return "+nan";
+                end
             end
-        end else if (value == 1.0/0.0) begin
-            return "inf";
-        end else if (value == -1.0/0.0) begin
-            return "-inf";
-        end else if (value != value) begin  // NaN check
-            if (bits[31]) begin  // Check sign bit
-                return "-nan";
-            end else begin
-                return "nan";
-            end
-        end else begin
-            // Use scientific notation for very small numbers
-            if (value < 1e-10 || value > 1e10) begin
-                $sformat(result, "%e", value);
-            end else begin
-                // For normal numbers, use %g to remove trailing zeros
-                $sformat(result, "%g", value);
-            end
-            return result;
         end
+        
+        // Handle zero
+        if (bits[30:0] == 0) begin
+            if (bits[31]) begin
+                return "-0.000000e+00";
+            end else begin
+                return "+0.000000e+00";
+            end
+        end
+        
+        // Handle normal numbers
+        abs_value = (value < 0) ? -value : value;
+        
+        // Use scientific notation with 6 decimal places
+        if (value < 0) begin
+            $sformat(result, "-%.6e", abs_value);
+        end else begin
+            $sformat(result, "+%.6e", abs_value);
+        end
+        
+        return result;
     endfunction
 
     // Main test sequence
