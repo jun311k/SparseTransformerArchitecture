@@ -140,9 +140,9 @@ module fp32_mul_tb;
         reg [8*100:1] line;
         
         // Open input file
-        file = $fopen("test_fp32_inputs.txt", "r");
+        file = $fopen("fp32_inputs.txt", "r");
         if (file == 0) begin
-            $display("Error: Could not open test_fp32_inputs.txt");
+            $display("Error: Could not open fp32_inputs.txt");
             $finish;
         end
 

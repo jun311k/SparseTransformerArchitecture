@@ -8,7 +8,7 @@ This directory contains the simulation environment for the FP32 multiplier imple
 mac_array_sim/
 ├── fp32_mul_tb.sv          # Main testbench
 ├── fp32_ref_model.c        # C reference model
-├── test_fp32_inputs.txt    # Test cases
+├── fp32_inputs.txt    # Test cases
 ├── test_fp32_expected.txt  # Expected results
 ├── run_sim_fp32_mul.ps1    # PowerShell script for Windows
 ├── run_sim_fp32_mul.bat    # Batch script for Windows

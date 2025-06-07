@@ -104,9 +104,9 @@ int main(int argc, char *argv[]) {
     int line_count = 0;
     int test_index = 0;  // 0-based test index
 
-    input_file = fopen("test_fp32_inputs.txt", "r");
+    input_file = fopen("fp32_inputs.txt", "r");
     if (input_file == NULL) {
-        fprintf(stderr, "Error opening test_fp32_inputs.txt for reading.\n");
+        fprintf(stderr, "Error opening fp32_inputs.txt for reading.\n");
         return 1;
     }
 
