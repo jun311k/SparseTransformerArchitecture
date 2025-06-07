@@ -103,6 +103,7 @@ int main(int argc, char *argv[]) {
     char hex_a[9], hex_b[9]; // 8 hex chars + null terminator
     int line_count = 0;
     int test_index = 0;  // 0-based test index
+    int is_first_line = 1;  // Flag to track first line
 
     input_file = fopen("fp32_inputs.txt", "r");
     if (input_file == NULL) {
@@ -140,7 +141,12 @@ int main(int argc, char *argv[]) {
             a_bits = (uint32_t)strtoul(hex_a, NULL, 16);
             b_bits = (uint32_t)strtoul(hex_b, NULL, 16);
             result = calculate_fp32_c_native_float(a_bits, b_bits);
-            fprintf(output_file, "%08X\n", result);
+            // Add newline only if it's not the first line
+            if (!is_first_line) {
+                fprintf(output_file, "\n");
+            }
+            fprintf(output_file, "%08X", result);
+            is_first_line = 0;
             // write them in floating point format and bits format
             fprintf(fp_reason, "Line %d (Index %d): Category=%d Input A: %s (%.6e), Input B: %s (%.6e), Expected_Result: %08X (%.6e)\n",
                     line_count, test_index, category, hex_a, u32_to_float_safe(a_bits),

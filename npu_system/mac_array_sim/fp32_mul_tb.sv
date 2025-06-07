@@ -165,7 +165,8 @@ module fp32_mul_tb;
         while (!$feof(file)) begin
             // Skip comments and empty lines
             $fgets(line, file);
-            if (line[0] != "/" && line[0] != "\n" && line[0] != "\r") begin
+            // $display("contents of testcase %d : %s", test_index, line);
+            if (line != "" && line[0] != "/" && line[0] != "\n" && line[0] != "\r") begin
                 // Parse the line
                 if ($sscanf(line, "%d %h %h", file_category, test_a, test_b) == 3) begin
                     get_test_category(test_a, test_b, category);  // Calculate category using task
@@ -201,7 +202,7 @@ module fp32_mul_tb;
         while (!$feof(file)) begin
             // Skip comments and empty lines
             $fgets(line, file);
-            if (line[0] != "/" && line[0] != "\n" && line[0] != "\r") begin
+            if (line != "" && line[0] != "/" && line[0] != "\n" && line[0] != "\r") begin
                 // Parse the line
                 if ($sscanf(line, "%h", expected) == 1) begin
                     expected_results_mem[num_expected_results] = expected;
