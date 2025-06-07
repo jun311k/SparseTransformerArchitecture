@@ -65,7 +65,6 @@ uint32_t calculate_fp32_c_native_float(uint32_t a_bits, uint32_t b_bits) {
     // if (exp_a == 0 && man_a != 0) val_a = copysignf(0.0f, val_a);
     // if (exp_b == 0 && man_b != 0) val_b = copysignf(0.0f, val_b);
 
-
     // --- Perform multiplication ---
     // Note: C's default rounding is typically round-to-nearest-ties-to-even.
     // If DUT uses a different rounding, <fenv.h> might be an option, or this approach is unsuitable.
@@ -100,45 +99,62 @@ uint32_t calculate_fp32_c_native_float(uint32_t a_bits, uint32_t b_bits) {
 int main(int argc, char *argv[]) {
     FILE *input_file, *output_file, *fp_reason;
     uint32_t a_bits, b_bits, result;
+    char line[256];
     char hex_a[9], hex_b[9]; // 8 hex chars + null terminator
+    int line_count = 0;
+    int test_index = 0;  // 0-based test index
 
-    input_file = fopen("test_inputs.txt", "r");
+    input_file = fopen("test_fp32_inputs.txt", "r");
     if (input_file == NULL) {
-        fprintf(stderr, "Error opening test_inputs.txt for reading.\n");
+        fprintf(stderr, "Error opening test_fp32_inputs.txt for reading.\n");
         return 1;
     }
 
-    output_file = fopen("expected_results.txt", "w");
+    output_file = fopen("test_fp32_expected.txt", "w");
     if (output_file == NULL) {
-        fprintf(stderr, "Error opening expected_results.txt for writing.\n");
+        fprintf(stderr, "Error opening test_fp32_expected.txt for writing.\n");
         fclose(input_file);
         return 1;
     }
 
-    fp_reason = fopen("process_reason.txt", "w");
+    fp_reason = fopen("test_fp32_refc_details.txt", "w");
     if (fp_reason == NULL) {
-        fprintf(stderr, "Error opening process_reason.txt for writing.\n");
+        fprintf(stderr, "Error opening test_fp32_refc_details.txt for writing.\n");
         fclose(input_file);
         fclose(output_file);
         return 1;
     }
 
-    // Read two hex values per line, calculate, and write result
-    while (fscanf(input_file, "%8s %8s", hex_a, hex_b) == 2) {
-        a_bits = (uint32_t)strtoul(hex_a, NULL, 16);
-        b_bits = (uint32_t)strtoul(hex_b, NULL, 16);
-        result = calculate_fp32_c_native_float(a_bits, b_bits);
-        fprintf(output_file, "%08X\n", result);
-        // write them in floating point format and bits format
-        fprintf(fp_reason, "Input A: %s (%f), Input B: %s (%f), Expected_Result: %08X (%f)\n",
-                hex_a, u32_to_float_safe(a_bits),
-                hex_b, u32_to_float_safe(b_bits),
-                result, u32_to_float_safe(result));
+    // Read line by line, skip comments and empty lines
+    while (fgets(line, sizeof(line), input_file)) {
+        line_count++;
+        
+        // Skip empty lines and comments
+        if (line[0] == '\n' || line[0] == '/' || line[0] == ' ' || line[0] == '\r') {
+            continue;
+        }
+
+        // Try to read category and two hex values from the line
+        int category;
+        if (sscanf(line, "%d %8s %8s", &category, hex_a, hex_b) == 3) {
+            a_bits = (uint32_t)strtoul(hex_a, NULL, 16);
+            b_bits = (uint32_t)strtoul(hex_b, NULL, 16);
+            result = calculate_fp32_c_native_float(a_bits, b_bits);
+            fprintf(output_file, "%08X\n", result);
+            // write them in floating point format and bits format
+            fprintf(fp_reason, "Line %d (Index %d): Category=%d Input A: %s (%f), Input B: %s (%f), Expected_Result: %08X (%f)\n",
+                    line_count, test_index, category, hex_a, u32_to_float_safe(a_bits),
+                    hex_b, u32_to_float_safe(b_bits),
+                    result, u32_to_float_safe(result));
+            test_index++;  // Increment test index for valid test cases
+        } else {
+            fprintf(stderr, "Warning: Invalid format at line %d: %s", line_count, line);
+        }
     }
 
     fclose(input_file);
     fclose(output_file);
     fclose(fp_reason);
-    printf("Processing complete. Results written to expected_results.txt and process_reason.txt.\n");
+    printf("Processing complete. Results written to test_fp32_expected.txt and test_fp32_refc_details.txt.\n");
     return 0;
 }
