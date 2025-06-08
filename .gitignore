@@ -62,3 +62,7 @@ npu_system/mac_array_sim/fp32_mul_sim
 npu_system/mac_array_sim/sim.out
 npu_system/mac_array_sim/simv
 npu_system/mac_array_sim/test_fp32_expected.txt
+
+# Generated Images
+*_mask_*.png
+mask_comparison_*.png
