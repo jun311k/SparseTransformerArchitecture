@@ -525,6 +525,7 @@ if __name__ == "__main__":
     parser.add_argument('--size', type=int, default=1024, help='Size of the square mask matrix (default: 1024)')
     parser.add_argument('--window_size', type=int, default=32, help='Size of the local attention window (default: 32)')
     parser.add_argument('--stride', type=int, default=32, help='Stride between attention points (default: 32)')
+    parser.add_argument('--sample_size', type=int, default=128, help='Size of the sample to visualize (default: 128)')
     # Option to save full-size PNGs
     parser.add_argument('--full_png', action='store_true', help='Save full-size PNG images instead of samples')
     # bypass graphics
@@ -556,9 +557,9 @@ if __name__ == "__main__":
         visualize_mask_sample(
             mask=normal_mask,
             title='Normal (Full) Attention Mask',
-            sample_size=128,
+            sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'normal_mask_{"full" if args.full_png else "128x128"}.png',
+            save_path=f'normal_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -574,13 +575,13 @@ if __name__ == "__main__":
     print(f"Sparsity[Strided Mask]: {strided_sparsity:.4%}")
     
     if not args.no_graphic:
-        # Visualize 128x128 sample of strided mask
+        # Visualize sample of strided mask
         visualize_mask_sample(
             mask=strided_mask,
             title='Strided Pattern Mask',
-            sample_size=128,
+            sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'strided_mask_{"full" if args.full_png else "128x128"}.png',
+            save_path=f'strided_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -597,13 +598,13 @@ if __name__ == "__main__":
     print(f"Sparsity[Fixed Mask]: {fixed_sparsity:.4%}")
     
     if not args.no_graphic:
-        # Visualize 128x128 sample of fixed mask
+        # Visualize sample of fixed mask
         visualize_mask_sample(
             mask=fixed_mask,
             title='Fixed Pattern Mask',
-            sample_size=128,
+            sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'fixed_mask_{"full" if args.full_png else "128x128"}.png',
+            save_path=f'fixed_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
              full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -614,9 +615,9 @@ if __name__ == "__main__":
         visualize_mask_comparison(
             masks=[normal_mask, strided_mask, fixed_mask], # Pass full masks for comparison
             titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
-            sample_size=128,
+            sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'mask_comparison_{"full" if args.full_png else "128x128"}.png',
+            save_path=f'mask_comparison_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -638,9 +639,9 @@ if __name__ == "__main__":
         visualize_mask_sample(
             mask=sliding_window_mask,
             title='Sliding Window Pattern Mask',
-            sample_size=128,
+            sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'sliding_window_mask_{"full" if args.full_png else "128x128"}.png',
+            save_path=f'sliding_window_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -663,9 +664,9 @@ if __name__ == "__main__":
         visualize_mask_sample(
             mask=dilated_sliding_window_mask,
             title='Dilated Sliding Window Pattern Mask',
-            sample_size=128,
+            sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'dilated_sliding_window_mask_{"full" if args.full_png else "128x128"}.png',
+            save_path=f'dilated_sliding_window_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -688,9 +689,9 @@ if __name__ == "__main__":
                 'Sliding Window',
                 'Dilated Sliding Window'
             ],
-            sample_size=128,
+            sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'mask_comparison_{"full" if args.full_png else "128x128"}.png',
+            save_path=f'mask_comparison_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -708,12 +709,12 @@ if __name__ == "__main__":
         # Printout the sparsity patterns for each mask
         print("\nSparsity Patterns:")
         print("Normal Mask")
-        non_zer_mask_print(normal_mask[:128, :128], ordrer=args.order)
+        non_zer_mask_print(normal_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
         print("Strided Mask")
-        non_zer_mask_print(strided_mask[:128, :128], ordrer=args.order)
+        non_zer_mask_print(strided_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
         print("Fixed Mask")
-        non_zer_mask_print(fixed_mask[:128, :128], ordrer=args.order)
+        non_zer_mask_print(fixed_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
         print("Sliding Window Mask")
-        non_zer_mask_print(sliding_window_mask[:128, :128], ordrer=args.order)
+        non_zer_mask_print(sliding_window_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
         print("Dilated Sliding Window Mask")
-        non_zer_mask_print(dilated_sliding_window_mask[:128, :128], ordrer=args.order)
+        non_zer_mask_print(dilated_sliding_window_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
