@@ -208,20 +208,31 @@ def create_fixed_mask_step_by_step(size, window_size=32):
     
     return mask
 
-def visualize_mask_sample(mask, title, sample_size, colormap, save_path):
+def visualize_mask_sample(mask, title, sample_size, colormap, save_path, full_png=False, show_graphic=True):
     """
     Visualize a sample of the mask and save it.
     
     Args:
         mask (numpy.ndarray): Input mask matrix
         title (str): Title for the visualization
-        sample_size (int): Size of the sample to visualize
+        sample_size (int): Size of the sample to visualize (for display if not full_png)
         colormap: Matplotlib colormap to use
         save_path (str): Path to save the visualization
+        full_png (bool, optional): Whether to save the full-size mask as PNG. Defaults to False.
+        show_graphic (bool, optional): Whether to display the graphic on screen. Defaults to True.
     """
-    plt.figure(figsize=(10, 8))
-    plt.imshow(mask[0:sample_size, 0:sample_size], cmap=colormap, vmin=0, vmax=3)
-    plt.title(f'{title} ({sample_size}x{sample_size} sample)')
+    if full_png:
+        display_mask = mask
+        display_title = f'{title} ({mask.shape[0]}x{mask.shape[1]})'
+        fig_size = (mask.shape[0] / 100, mask.shape[1] / 100) # Assuming 100 dpi
+    else:
+        display_mask = mask[0:sample_size, 0:sample_size]
+        display_title = f'{title} ({sample_size}x{sample_size} sample)'
+        fig_size = (10, 8)
+
+    plt.figure(figsize=fig_size)
+    plt.imshow(display_mask, cmap=colormap, vmin=0, vmax=3)
+    plt.title(display_title)
     plt.grid(True)
     
     # Add colorbar
@@ -230,10 +241,9 @@ def visualize_mask_sample(mask, title, sample_size, colormap, save_path):
     
     # Calculate sparsity
     sparsity = 1.0 - np.count_nonzero(mask) / mask.size
-    sample_sparsity = 1.0 - np.count_nonzero(mask[0:sample_size, 0:sample_size]) / (sample_size * sample_size)
     
     # Add sparsity annotation
-    plt.annotate(f'Full Mask Sparsity: {sparsity:.4%}\nSample Sparsity: {sample_sparsity:.4%}', 
+    plt.annotate(f'Full Mask Sparsity: {sparsity:.4%}', 
                 xy=(0.02, 0.02), 
                 xycoords='axes fraction',
                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
@@ -242,8 +252,10 @@ def visualize_mask_sample(mask, title, sample_size, colormap, save_path):
     plt.savefig(save_path)
     print(f"Mask visualization saved as {save_path}")
     
-    # Show the plot
-    plt.show()
+    if show_graphic:
+        plt.show()
+    else:
+        plt.close() # Close the figure to prevent it from being displayed
 
 def convert_to_binary_mask(mask):
     """
@@ -300,28 +312,46 @@ def create_normal_mask_step_by_step(size):
     
     return mask
 
-def visualize_mask_comparison(masks, titles, sample_size, colormap, save_path):
+def visualize_mask_comparison(masks, titles, sample_size, colormap, save_path, full_png=False, show_graphic=True):
     """
     Visualize multiple masks side by side for comparison.
     
     Args:
         masks (list): List of mask matrices
         titles (list): List of titles for each mask
-        sample_size (int): Size of the sample to visualize
+        sample_size (int): Size of the sample to visualize (for display if not full_png)
         colormap: Matplotlib colormap to use
         save_path (str): Path to save the visualization
+        full_png (bool, optional): Whether to save the full-size mask as PNG. Defaults to False.
+        show_graphic (bool, optional): Whether to display the graphic on screen. Defaults to True.
     """
     n_masks = len(masks)
-    fig, axes = plt.subplots(1, n_masks, figsize=(6*n_masks, 8))
     
+    if full_png:
+        # For full PNG, each mask in the comparison should be the full mask
+        # And figsize should be adjusted for full size
+        fig, axes = plt.subplots(1, n_masks, figsize=(masks[0].shape[0] / 100 * n_masks, masks[0].shape[1] / 100))
+    else:
+        fig, axes = plt.subplots(1, n_masks, figsize=(6 * n_masks, 8))
+    
+    # Ensure axes is an array even for a single subplot
+    if n_masks == 1:
+        axes = [axes]
+
     for i, (mask, title, ax) in enumerate(zip(masks, titles, axes)):
-        im = ax.imshow(mask[0:sample_size, 0:sample_size], cmap=colormap, vmin=0, vmax=3)
-        ax.set_title(f'{title}\n({sample_size}x{sample_size} sample)')
+        if full_png:
+            display_mask = mask
+            display_title = f'{title}\n({mask.shape[0]}x{mask.shape[1]})'
+        else:
+            display_mask = mask[0:sample_size, 0:sample_size]
+            display_title = f'{title}\n({sample_size}x{sample_size} sample)'
+
+        im = ax.imshow(display_mask, cmap=colormap, vmin=0, vmax=3)
+        ax.set_title(display_title)
         ax.grid(True)
         
         # Calculate sparsity
         sparsity = 1.0 - np.count_nonzero(mask) / mask.size
-        sample_sparsity = 1.0 - np.count_nonzero(mask[0:sample_size, 0:sample_size]) / (sample_size * sample_size)
         
         # Add sparsity annotation
         ax.annotate(f'Sparsity: {sparsity:.4%}', 
@@ -339,8 +369,10 @@ def visualize_mask_comparison(masks, titles, sample_size, colormap, save_path):
     plt.savefig(save_path)
     print(f"Comparison visualization saved as {save_path}")
     
-    # Show the plot
-    plt.show()
+    if show_graphic:
+        plt.show()
+    else:
+        plt.close() # Close the figure to prevent it from being displayed
 
 def add_sliding_window(mask, window_size=32, value=2):
     """
@@ -493,6 +525,8 @@ if __name__ == "__main__":
     parser.add_argument('--size', type=int, default=1024, help='Size of the square mask matrix (default: 1024)')
     parser.add_argument('--window_size', type=int, default=32, help='Size of the local attention window (default: 32)')
     parser.add_argument('--stride', type=int, default=32, help='Stride between attention points (default: 32)')
+    # Option to save full-size PNGs
+    parser.add_argument('--full_png', action='store_true', help='Save full-size PNG images instead of samples')
     # bypass graphics
     parser.add_argument('--no_graphic', action='store_true', help='Bypass graphics and only print sparsity patterns')  
     # order of non-zero elements
@@ -524,7 +558,9 @@ if __name__ == "__main__":
             title='Normal (Full) Attention Mask',
             sample_size=128,
             colormap=custom_cmap,
-            save_path='normal_mask_128x128.png'
+            save_path=f'normal_mask_{"full" if args.full_png else "128x128"}.png',
+            full_png=args.full_png,
+            show_graphic=not args.full_png
         )
 
     print("Creating Strided mask step by step...")
@@ -544,7 +580,9 @@ if __name__ == "__main__":
             title='Strided Pattern Mask',
             sample_size=128,
             colormap=custom_cmap,
-            save_path='strided_mask_128x128.png'
+            save_path=f'strided_mask_{"full" if args.full_png else "128x128"}.png',
+            full_png=args.full_png,
+            show_graphic=not args.full_png
         )
 
     # Now create and visualize the fixed pattern mask
@@ -565,18 +603,22 @@ if __name__ == "__main__":
             title='Fixed Pattern Mask',
             sample_size=128,
             colormap=custom_cmap,
-            save_path='fixed_mask_128x128.png'
+            save_path=f'fixed_mask_{"full" if args.full_png else "128x128"}.png',
+             full_png=args.full_png,
+            show_graphic=not args.full_png
         )
     
     if not args.no_graphic:
         # Create comparison visualization of all three mask types
         print("\nCreating comparison visualization...")
         visualize_mask_comparison(
-            masks=[normal_mask[:128, :128], strided_mask[:128, :128], fixed_mask[:128, :128]],
+            masks=[normal_mask, strided_mask, fixed_mask], # Pass full masks for comparison
             titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
             sample_size=128,
             colormap=custom_cmap,
-            save_path='mask_comparison_128x128.png'
+            save_path=f'mask_comparison_{"full" if args.full_png else "128x128"}.png',
+            full_png=args.full_png,
+            show_graphic=not args.full_png
         )
         print("Comparison visualization created!")
 
@@ -598,7 +640,9 @@ if __name__ == "__main__":
             title='Sliding Window Pattern Mask',
             sample_size=128,
             colormap=custom_cmap,
-            save_path='sliding_window_mask_128x128.png'
+            save_path=f'sliding_window_mask_{"full" if args.full_png else "128x128"}.png',
+            full_png=args.full_png,
+            show_graphic=not args.full_png
         )
     
     # Create dilated sliding window mask
@@ -621,7 +665,9 @@ if __name__ == "__main__":
             title='Dilated Sliding Window Pattern Mask',
             sample_size=128,
             colormap=custom_cmap,
-            save_path='dilated_sliding_window_mask_128x128.png'
+            save_path=f'dilated_sliding_window_mask_{"full" if args.full_png else "128x128"}.png',
+            full_png=args.full_png,
+            show_graphic=not args.full_png
         )
     
     if not args.no_graphic:
@@ -629,11 +675,11 @@ if __name__ == "__main__":
         print("\nCreating comparison visualization...")
         visualize_mask_comparison(
             masks=[
-                normal_mask[:128, :128],
-                strided_mask[:128, :128],
-                fixed_mask[:128, :128],
-                sliding_window_mask[:128, :128],
-                dilated_sliding_window_mask[:128, :128]
+                normal_mask,
+                strided_mask,
+                fixed_mask,
+                sliding_window_mask,
+                dilated_sliding_window_mask
             ],
             titles=[
                 'Normal (Full) Attention',
@@ -644,7 +690,9 @@ if __name__ == "__main__":
             ],
             sample_size=128,
             colormap=custom_cmap,
-            save_path='mask_comparison_128x128.png'
+            save_path=f'mask_comparison_{"full" if args.full_png else "128x128"}.png',
+            full_png=args.full_png,
+            show_graphic=not args.full_png
         )
         print("Comparison visualization created!") 
 
