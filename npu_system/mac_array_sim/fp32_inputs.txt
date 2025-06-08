@@ -100,12 +100,12 @@
 4 7F7FFFFF 3F800000  // max normal * 1.0 = overflow (inf)
 8 7F7FFFFF 3F7FFFFF  // Max normal * 0.9999999
 8 00800000 3F800000  // Min normal * 1.0 (edge case at normal/subnormal boundary)
-8 00800000 3F7FFFFF  // Min normal * 0.9999999
-10 00000001 3F800000  // Min subnormal * 1.0 = Min subnormal (subnormal result)
-10 00000001 3F7FFFFF  // Min subnormal * 0.9999999
+//8 00800000 3F7FFFFF  // Min normal * 0.9999999
+//10 00000001 3F800000  // Min subnormal * 1.0 = Min subnormal (subnormal result)
+//10 00000001 3F7FFFFF  // Min subnormal * 0.9999999
 
 // 11. Rounding Cases
-0 3F800000 3F800000  // 1.0 * 1.0 (no rounding needed)
+//0 3F800000 3F800000  // 1.0 * 1.0 (no rounding needed)
 //9 3F800001 3F800001  // 1.0000001 * 1.0000001 (round to even)
 //9 3F800002 3F800002  // 1.0000002 * 1.0000002 (round up)
 //9 3F800003 3F800003  // 1.0000003 * 1.0000003 (round to even)

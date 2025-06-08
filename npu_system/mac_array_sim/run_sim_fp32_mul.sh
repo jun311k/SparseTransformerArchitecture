@@ -14,14 +14,14 @@ if [ "$CURRENT_DIR" != "$SCRIPT_DIR" ]; then
 fi
 
 # Clean up old files
-rm -f fp32_mul_sim dump.vcd sim.out fp32_ref_model_exec.exe test_fp32_expected.txt test_fp32_refc_details.txt
+rm -f fp32_mul_sim dump.vcd sim.out fp32_ref_model_exec test_fp32_expected.txt test_fp32_refc_details.txt
 
 # Compile C reference model
 echo "Compiling C reference model..."
-gcc -o fp32_ref_model_exec.exe fp32_ref_model.c -lm
+gcc -o fp32_ref_model_exec fp32_ref_model.c -lm
 if [ $? -eq 0 ]; then
     echo "C reference model compiled successfully"
-    ./fp32_ref_model_exec.exe
+    ./fp32_ref_model_exec
 else
     echo "Error compiling C reference model"
     exit 1
