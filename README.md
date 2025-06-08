@@ -184,7 +184,7 @@ or follow this options
 
 ```bash
 % python sparse_transformer_mask.py --help                           
-usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] [--no_graphic] [--order {Order.ROW_FIRST,Order.COLUMN_FIRST}] [--skip_pattern_print]
+usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] [--sample_size SAMPLE_SIZE] [--full_png] [--no_graphic] [--order {row_first,column_first}] [--skip_pattern_print]
 
 Sparse Transformer Attention Mask Implementation
 
@@ -194,8 +194,11 @@ options:
   --window_size WINDOW_SIZE
                         Size of the local attention window (default: 32)
   --stride STRIDE       Stride between attention points (default: 32)
+  --sample_size SAMPLE_SIZE
+                        Size of the sample to visualize (default: 128)
+  --full_png            Save full-size PNG images instead of samples
   --no_graphic          Bypass graphics and only print sparsity patterns
-  --order {Order.ROW_FIRST,Order.COLUMN_FIRST}
+  --order {row_first,column_first}
                         Order of non-zero elements in the mask (default: row_first)
   --skip_pattern_print  Skip printing non-zero elements of the mask
 ```
@@ -231,4 +234,4 @@ For a sequence length of 1024 (32x32 CIFAR-10 image):
 
 - [Sparse Transformer (Child et al., 2019)](https://arxiv.org/abs/1904.10509)
 - [Longformer (Beltagy et al., 2020)](https://arxiv.org/abs/2004.05150)
-- [BigBird (Zaheer et al., 2020)](https://arxiv.org/abs/2007.14062) 
+- [BigBird (Zaheer et al., 2020)](https://arxiv.org/abs/2007.14062)

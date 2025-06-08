@@ -182,7 +182,7 @@ python sparse_transformer_mask.py
 
 ```bash
 % python sparse_transformer_mask.py --help                           
-usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] [--no_graphic] [--order {Order.ROW_FIRST,Order.COLUMN_FIRST}] [--skip_pattern_print]
+usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] [--sample_size SAMPLE_SIZE] [--full_png] [--no_graphic] [--order {row_first,column_first}] [--skip_pattern_print]
 
 Sparse Transformer Attention Mask Implementation
 
@@ -192,10 +192,13 @@ options:
   --window_size WINDOW_SIZE
                         Size of the local attention window (default: 32)
   --stride STRIDE       Stride between attention points (default: 32)
-  --no_graphic          Bypass graphics and only print sparsity patterns
-  --order {Order.ROW_FIRST,Order.COLUMN_FIRST}
-                        Order of non-zero elements in the mask (default: row_first)
-  --skip_pattern_print  Skip printing non-zero elements of the mask
+  --sample_size SAMPLE_SIZE
+                        시각화할 샘플의 크기 (기본값: 128)
+  --full_png            샘플 대신 전체 크기 PNG 이미지 저장
+  --no_graphic          그래픽을 건너뛰고 희소성 패턴만 출력
+  --order {row_first,column_first}
+                        마스크의 0이 아닌 요소 순서 (기본값: row_first)
+  --skip_pattern_print  마스크의 0이 아닌 요소 출력 건너뛰기
 ```
 
 이 명령은 다음을 수행합니다:
@@ -229,4 +232,4 @@ options:
 
 - [Sparse Transformer (Child et al., 2019)](https://arxiv.org/abs/1904.10509)
 - [Longformer (Beltagy et al., 2020)](https://arxiv.org/abs/2004.05150)
-- [BigBird (Zaheer et al., 2020)](https://arxiv.org/abs/2007.14062) 
+- [BigBird (Zaheer et al., 2020)](https://arxiv.org/abs/2007.14062)
