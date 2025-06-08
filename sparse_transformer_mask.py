@@ -19,6 +19,7 @@ References:
 import numpy as np
 import matplotlib.pyplot as plt
 from enum import Enum
+import os
 
 # Custom implementation of mask functions
 def create_zero_mask(size):
@@ -519,6 +520,9 @@ def non_zer_mask_print(mask, ordrer: Order = Order.ROW_FIRST):
 # Main function
 if __name__ == "__main__":
     import argparse
+    
+    # Create the 'generated' directory if it doesn't exist
+    os.makedirs('generated', exist_ok=True)
 
     # Argument parser for command line options
     parser = argparse.ArgumentParser(description='Sparse Transformer Attention Mask Implementation')
@@ -559,7 +563,7 @@ if __name__ == "__main__":
             title='Normal (Full) Attention Mask',
             sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'normal_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
+            save_path=f'generated/normal_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -581,7 +585,7 @@ if __name__ == "__main__":
             title='Strided Pattern Mask',
             sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'strided_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
+            save_path=f'generated/strided_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -604,7 +608,7 @@ if __name__ == "__main__":
             title='Fixed Pattern Mask',
             sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'fixed_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
+            save_path=f'generated/fixed_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
              full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -617,7 +621,7 @@ if __name__ == "__main__":
             titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
             sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'mask_comparison_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
+            save_path=f'generated/mask_comparison_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -641,7 +645,7 @@ if __name__ == "__main__":
             title='Sliding Window Pattern Mask',
             sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'sliding_window_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
+            save_path=f'generated/sliding_window_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -666,7 +670,7 @@ if __name__ == "__main__":
             title='Dilated Sliding Window Pattern Mask',
             sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'dilated_sliding_window_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
+            save_path=f'generated/dilated_sliding_window_mask_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
@@ -691,7 +695,7 @@ if __name__ == "__main__":
             ],
             sample_size=args.sample_size,
             colormap=custom_cmap,
-            save_path=f'mask_comparison_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
+            save_path=f'generated/mask_comparison_{"full" if args.full_png else f"{args.sample_size}x{args.sample_size}"}.png',
             full_png=args.full_png,
             show_graphic=not args.full_png
         )
