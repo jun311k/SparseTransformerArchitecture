@@ -13,7 +13,7 @@ if not "%CURRENT_DIR%"=="%SCRIPT_DIR%" (
 )
 
 REM Clean up old files
-del /f /q fp32_mul_sim dump.vcd sim.out fp32_ref_model_exec.exe test_fp32_expected.txt test_fp32_refc_details.txt 2>nul
+del /f /q fp32_mul_sim dump.vcd sim.out fp32_ref_model_exec.exe fp32_expected.txt fp32_refc_details.txt 2>nul
 
 REM Compile C reference model
 echo Compiling C reference model...

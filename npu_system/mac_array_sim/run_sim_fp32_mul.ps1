@@ -13,7 +13,7 @@ if ($currentDir.Path -ne $scriptDir) {
 }
 
 # Clean up old files
-Remove-Item -Force -ErrorAction SilentlyContinue fp32_mul_sim, dump.vcd, sim.out, test_fp32_expected.txt, test_fp32_refc_details.txt
+Remove-Item -Force -ErrorAction SilentlyContinue fp32_mul_sim, dump.vcd, sim.out, fp32_ref_model_exec.exe, fp32_expected.txt, fp32_refc_details.txt
 
 # Compile C reference model
 Write-Host "Compiling C reference model..."

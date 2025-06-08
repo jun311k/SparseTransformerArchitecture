@@ -14,7 +14,7 @@ if [ "$CURRENT_DIR" != "$SCRIPT_DIR" ]; then
 fi
 
 # Clean up old files
-rm -f fp32_mul_sim dump.vcd sim.out fp32_ref_model_exec test_fp32_expected.txt test_fp32_refc_details.txt
+rm -f fp32_mul_sim dump.vcd sim.out fp32_ref_model_exec fp32_expected.txt fp32_refc_details.txt
 
 # Compile C reference model
 echo "Compiling C reference model..."
