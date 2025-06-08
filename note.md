@@ -75,3 +75,14 @@ Edit
 | 2048       | 45.25      | 32 또는 64               |
 | 3072       | 55.45      | 보통 64 또는 56 정도       |
 | 4096       | 64         | 64                      |
+
+
+##  Recommended command options
+```bash
+$ python sparse_transformer_mask.py --size 3072 --window_size 64 --stride 64 --full_png --skip_pattern_print
+```
+- token size: 3072
+- local_attention: 64
+- stride period: 64
+- full size attention image
+- skip pattern print
