@@ -98,6 +98,18 @@ sliding_window_mask = create_sliding_window_mask_step_by_step(size=1024, window_
 dilated_sliding_window_mask = create_dilated_sliding_window_mask_step_by_step(size=1024, window_size=32, dilation=2)
 ```
 
+#### Sparsity Information in case of 1024 tokens
+```
+Sparsity of each mask:
+Normal Mask Sparsity: 49.9512%
+Strided Mask Sparsity: 95.4086%
+Fixed Mask Sparsity: 96.8750%
+Sliding Window Mask Sparsity: 96.8033%
+Dilated Sliding Window Mask Sparsity: 96.8292%
+```
+
+
+
 ### Converting to Binary Masks
 
 The generated masks have values 1, 2, and 3 to distinguish attention types, but for use in actual transformer models, they should be converted to binary masks (consisting only of 0s and 1s):

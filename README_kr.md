@@ -98,6 +98,16 @@ sliding_window_mask = create_sliding_window_mask_step_by_step(size=1024, window_
 dilated_sliding_window_mask = create_dilated_sliding_window_mask_step_by_step(size=1024, window_size=32, dilation=2)
 ```
 
+#### 1024 토큰의 경우에 대한 Sparsity 정보
+```
+Sparsity of each mask:
+Normal Mask Sparsity: 49.9512%
+Strided Mask Sparsity: 95.4086%
+Fixed Mask Sparsity: 96.8750%
+Sliding Window Mask Sparsity: 96.8033%
+Dilated Sliding Window Mask Sparsity: 96.8292%
+```
+
 ### 바이너리 마스크로 변환
 
 생성된 마스크는 어텐션 타입을 구분하기 위해 1, 2, 3 값을 가지지만, 실제 트랜스포머 모델에서는 0과 1로만 구성된 바이너리 마스크로 변환해야 합니다:

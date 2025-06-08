@@ -472,8 +472,8 @@ if __name__ == "__main__":
     print("Strided mask created!")
     
     # Calculate sparsity
-    sparsity = 1.0 - np.count_nonzero(strided_mask) / strided_mask.size
-    print(f"Sparsity: {sparsity:.4%}")
+    strided_sparsity = 1.0 - np.count_nonzero(strided_mask) / strided_mask.size
+    print(f"Sparsity[Strided Mask]: {strided_sparsity:.4%}")
     
     # Visualize 64x64 sample of strided mask
     visualize_mask_sample(
@@ -502,7 +502,7 @@ if __name__ == "__main__":
     
     # Calculate sparsity
     fixed_sparsity = 1.0 - np.count_nonzero(fixed_mask) / fixed_mask.size
-    print(f"Fixed pattern sparsity: {fixed_sparsity:.4%}")
+    print(f"Sparsity[Fixed Mask]: {fixed_sparsity:.4%}")
     
     # Visualize 128x128 sample of fixed mask
     visualize_mask_sample(
@@ -534,7 +534,7 @@ if __name__ == "__main__":
     
     # Calculate sparsity
     sliding_window_sparsity = 1.0 - np.count_nonzero(sliding_window_mask) / sliding_window_mask.size
-    print(f"Sliding Window attention sparsity: {sliding_window_sparsity:.4%}")
+    print(f"Sparsity[Sliding Window Mask]: {sliding_window_sparsity:.4%}")
     
     # Visualize sliding window mask
     visualize_mask_sample(
@@ -556,7 +556,7 @@ if __name__ == "__main__":
     
     # Calculate sparsity
     dilated_sparsity = 1.0 - np.count_nonzero(dilated_sliding_window_mask) / dilated_sliding_window_mask.size
-    print(f"Dilated Sliding Window attention sparsity: {dilated_sparsity:.4%}")
+    print(f"Sparsity[Dillated Sliding Window Mask]: {dilated_sparsity:.4%}")
     
     # Visualize dilated sliding window mask
     visualize_mask_sample(
@@ -589,3 +589,11 @@ if __name__ == "__main__":
         save_path='mask_comparison_128x128.png'
     )
     print("Comparison visualization created!") 
+
+    # Printout the sparsity of each mask
+    print("\nSparsity of each mask:")
+    print(f"Normal Mask Sparsity: {normal_sparsity:.4%}")
+    print(f"Strided Mask Sparsity: {strided_sparsity:.4%}")
+    print(f"Fixed Mask Sparsity: {fixed_sparsity:.4%}")
+    print(f"Sliding Window Mask Sparsity: {sliding_window_sparsity:.4%}")
+    print(f"Dilated Sliding Window Mask Sparsity: {dilated_sparsity:.4%}")
