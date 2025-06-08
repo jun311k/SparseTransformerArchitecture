@@ -180,6 +180,25 @@ visualize_mask_comparison(
 ```bash
 python sparse_transformer_mask.py
 ```
+or follow this options
+
+```bash
+% python sparse_transformer_mask.py --help                           
+usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] [--no_graphic] [--order {Order.ROW_FIRST,Order.COLUMN_FIRST}] [--skip_pattern_print]
+
+Sparse Transformer Attention Mask Implementation
+
+options:
+  -h, --help            show this help message and exit
+  --size SIZE           Size of the square mask matrix (default: 1024)
+  --window_size WINDOW_SIZE
+                        Size of the local attention window (default: 32)
+  --stride STRIDE       Stride between attention points (default: 32)
+  --no_graphic          Bypass graphics and only print sparsity patterns
+  --order {Order.ROW_FIRST,Order.COLUMN_FIRST}
+                        Order of non-zero elements in the mask (default: row_first)
+  --skip_pattern_print  Skip printing non-zero elements of the mask
+```
 
 This command:
 1. Generates Normal, Strided, Fixed, Sliding Window, and Dilated Sliding Window pattern masks (all 1024x1024)

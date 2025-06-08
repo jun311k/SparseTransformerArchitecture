@@ -18,6 +18,7 @@ References:
 
 import numpy as np
 import matplotlib.pyplot as plt
+from enum import Enum
 
 # Custom implementation of mask functions
 def create_zero_mask(size):
@@ -439,12 +440,72 @@ def create_dilated_sliding_window_mask_step_by_step(size, window_size=32, dilati
     
     return mask
 
+
+class Order(str, Enum):
+    ROW_FIRST = 'row_first'
+    COLUMN_FIRST = 'column_first'
+
+def non_zer_mask_print(mask, ordrer: Order = Order.ROW_FIRST):
+    """
+    print(f"Strided Mask: {np.count_nonzero(strided_mask)} non-zero elements")
+    print(f"Fixed Mask: {np.count_nonzero(fixed_mask)} non-zero elements")
+    print(f"Sliding Window Mask: {np.count_nonzero(sliding_window_mask)} non-zero elements")
+    print(f"Dilated Sliding Window Mask: {np.count_nonzero(dilated_sliding_window_mask)} non-zero elements")
+    Print non-zero elements of the mask.
+    Args:
+        mask (numpy.ndarray): Input mask matrix
+    """
+    non_zero_elements = np.count_nonzero(mask)
+    print(f"Mask has {non_zero_elements} non-zero elements")
+    if Order.ROW_FIRST == ordrer:
+        # print row(1st dimension) and column(2nd dimension) indices of non-zero elements one by one
+        # row first, and then column 
+        # for each non-zero element, print row in common and column in next like this
+        # row 0: 0, 1, 2, 3, ... 1022
+        # row 1: 2, 3, 4, 6, ... 1023
+        for i in range(mask.shape[0]):
+            non_zero_indices = np.nonzero(mask[i, :])[0]
+            if non_zero_indices.size > 0:
+                print(f"Row {i}: {', '.join(map(str, non_zero_indices))}")
+            else:
+                print(f"Row {i}: No non-zero elements")
+    elif Order.COLUMN_FIRST == ordrer:
+        # print column(1st dimension) and row(2nd dimension) indices of non-zero elements one by one
+        # column first, and then row 
+        # for each non-zero element, print column in common and row in next like this
+        # column 0: 0, 1, 2, 3, ... 1022
+        # column 1: 2, 3, 4, 6, ... 1023
+        for j in range(mask.shape[1]):
+            non_zero_indices = np.nonzero(mask[:, j])[0]
+            if non_zero_indices.size > 0:
+                print(f"Column {j}: {', '.join(map(str, non_zero_indices))}")
+            else:
+                print(f"Column {j}: No non-zero elements")
+    else:
+        raise ValueError(f"Unknown order: {ordrer}. Use Order.ROW_FIRST or Order.COLUMN_FIRST.")
+
 # Main function
 if __name__ == "__main__":
+    import argparse
+
+    # Argument parser for command line options
+    parser = argparse.ArgumentParser(description='Sparse Transformer Attention Mask Implementation')
+    parser.add_argument('--size', type=int, default=1024, help='Size of the square mask matrix (default: 1024)')
+    parser.add_argument('--window_size', type=int, default=32, help='Size of the local attention window (default: 32)')
+    parser.add_argument('--stride', type=int, default=32, help='Stride between attention points (default: 32)')
+    # bypass graphics
+    parser.add_argument('--no_graphic', action='store_true', help='Bypass graphics and only print sparsity patterns')  
+    # order of non-zero elements
+    parser.add_argument('--order', type=Order, choices=list(Order), default=Order.ROW_FIRST, help='Order of non-zero elements in the mask (default: row_first)')
+    # skip non-zero elements print
+    parser.add_argument('--skip_pattern_print', action='store_true', help='Skip printing non-zero elements of the mask')
+
+    args = parser.parse_args()
     # Parameters
-    size = 1024
-    window_size = 32
-    stride = 32
+    size = args.size  # Size of the mask (1024 for CIFAR-10)
+    window_size = args.window_size  # Local attention window size (32 for CIFAR-10)
+    stride = args.stride  # Stride for strided attention (32 for CIFAR-10)
+
     custom_cmap = plt.cm.colors.ListedColormap(['lightgray', 'darkblue', 'royalblue', 'skyblue'])
     
     # Create normal attention mask
@@ -456,14 +517,15 @@ if __name__ == "__main__":
     normal_sparsity = 1.0 - np.count_nonzero(normal_mask) / normal_mask.size
     print(f"Normal attention sparsity: {normal_sparsity:.4%}")
     
-    # Visualize normal mask
-    visualize_mask_sample(
-        mask=normal_mask,
-        title='Normal (Full) Attention Mask',
-        sample_size=128,
-        colormap=custom_cmap,
-        save_path='normal_mask_128x128.png'
-    )
+    if not args.no_graphic:
+        # Visualize normal mask
+        visualize_mask_sample(
+            mask=normal_mask,
+            title='Normal (Full) Attention Mask',
+            sample_size=128,
+            colormap=custom_cmap,
+            save_path='normal_mask_128x128.png'
+        )
 
     print("Creating Strided mask step by step...")
     
@@ -475,23 +537,15 @@ if __name__ == "__main__":
     strided_sparsity = 1.0 - np.count_nonzero(strided_mask) / strided_mask.size
     print(f"Sparsity[Strided Mask]: {strided_sparsity:.4%}")
     
-    # Visualize 64x64 sample of strided mask
-    visualize_mask_sample(
-        mask=strided_mask,
-        title='Strided Pattern Mask',
-        sample_size=64,
-        colormap=custom_cmap,
-        save_path='strided_mask_64x64.png'
-    )
-    
-    # Visualize 128x128 sample of strided mask
-    visualize_mask_sample(
-        mask=strided_mask,
-        title='Strided Pattern Mask',
-        sample_size=128,
-        colormap=custom_cmap,
-        save_path='strided_mask_128x128.png'
-    )
+    if not args.no_graphic:
+        # Visualize 128x128 sample of strided mask
+        visualize_mask_sample(
+            mask=strided_mask,
+            title='Strided Pattern Mask',
+            sample_size=128,
+            colormap=custom_cmap,
+            save_path='strided_mask_128x128.png'
+        )
 
     # Now create and visualize the fixed pattern mask
     print("\nCreating Fixed pattern mask step by step...")
@@ -504,25 +558,27 @@ if __name__ == "__main__":
     fixed_sparsity = 1.0 - np.count_nonzero(fixed_mask) / fixed_mask.size
     print(f"Sparsity[Fixed Mask]: {fixed_sparsity:.4%}")
     
-    # Visualize 128x128 sample of fixed mask
-    visualize_mask_sample(
-        mask=fixed_mask,
-        title='Fixed Pattern Mask',
-        sample_size=128,
-        colormap=custom_cmap,
-        save_path='fixed_mask_128x128.png'
-    )
+    if not args.no_graphic:
+        # Visualize 128x128 sample of fixed mask
+        visualize_mask_sample(
+            mask=fixed_mask,
+            title='Fixed Pattern Mask',
+            sample_size=128,
+            colormap=custom_cmap,
+            save_path='fixed_mask_128x128.png'
+        )
     
-    # Create comparison visualization of all three mask types
-    print("\nCreating comparison visualization...")
-    visualize_mask_comparison(
-        masks=[normal_mask[:128, :128], strided_mask[:128, :128], fixed_mask[:128, :128]],
-        titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
-        sample_size=128,
-        colormap=custom_cmap,
-        save_path='mask_comparison_128x128.png'
-    )
-    print("Comparison visualization created!")
+    if not args.no_graphic:
+        # Create comparison visualization of all three mask types
+        print("\nCreating comparison visualization...")
+        visualize_mask_comparison(
+            masks=[normal_mask[:128, :128], strided_mask[:128, :128], fixed_mask[:128, :128]],
+            titles=['Normal (Full) Attention', 'Strided Pattern', 'Fixed Pattern'],
+            sample_size=128,
+            colormap=custom_cmap,
+            save_path='mask_comparison_128x128.png'
+        )
+        print("Comparison visualization created!")
 
     # Create sliding window mask
     print("\nCreating Sliding Window mask step by step...")
@@ -535,15 +591,15 @@ if __name__ == "__main__":
     # Calculate sparsity
     sliding_window_sparsity = 1.0 - np.count_nonzero(sliding_window_mask) / sliding_window_mask.size
     print(f"Sparsity[Sliding Window Mask]: {sliding_window_sparsity:.4%}")
-    
-    # Visualize sliding window mask
-    visualize_mask_sample(
-        mask=sliding_window_mask,
-        title='Sliding Window Pattern Mask',
-        sample_size=128,
-        colormap=custom_cmap,
-        save_path='sliding_window_mask_128x128.png'
-    )
+    if not args.no_graphic:
+        # Visualize sliding window mask
+        visualize_mask_sample(
+            mask=sliding_window_mask,
+            title='Sliding Window Pattern Mask',
+            sample_size=128,
+            colormap=custom_cmap,
+            save_path='sliding_window_mask_128x128.png'
+        )
     
     # Create dilated sliding window mask
     print("\nCreating Dilated Sliding Window mask step by step...")
@@ -558,37 +614,39 @@ if __name__ == "__main__":
     dilated_sparsity = 1.0 - np.count_nonzero(dilated_sliding_window_mask) / dilated_sliding_window_mask.size
     print(f"Sparsity[Dillated Sliding Window Mask]: {dilated_sparsity:.4%}")
     
-    # Visualize dilated sliding window mask
-    visualize_mask_sample(
-        mask=dilated_sliding_window_mask,
-        title='Dilated Sliding Window Pattern Mask',
-        sample_size=128,
-        colormap=custom_cmap,
-        save_path='dilated_sliding_window_mask_128x128.png'
-    )
+    if not args.no_graphic:
+        # Visualize dilated sliding window mask
+        visualize_mask_sample(
+            mask=dilated_sliding_window_mask,
+            title='Dilated Sliding Window Pattern Mask',
+            sample_size=128,
+            colormap=custom_cmap,
+            save_path='dilated_sliding_window_mask_128x128.png'
+        )
     
-    # Create comparison visualization including all patterns
-    print("\nCreating comparison visualization...")
-    visualize_mask_comparison(
-        masks=[
-            normal_mask[:128, :128],
-            strided_mask[:128, :128],
-            fixed_mask[:128, :128],
-            sliding_window_mask[:128, :128],
-            dilated_sliding_window_mask[:128, :128]
-        ],
-        titles=[
-            'Normal (Full) Attention',
-            'Strided Pattern',
-            'Fixed Pattern',
-            'Sliding Window',
-            'Dilated Sliding Window'
-        ],
-        sample_size=128,
-        colormap=custom_cmap,
-        save_path='mask_comparison_128x128.png'
-    )
-    print("Comparison visualization created!") 
+    if not args.no_graphic:
+        # Create comparison visualization including all patterns
+        print("\nCreating comparison visualization...")
+        visualize_mask_comparison(
+            masks=[
+                normal_mask[:128, :128],
+                strided_mask[:128, :128],
+                fixed_mask[:128, :128],
+                sliding_window_mask[:128, :128],
+                dilated_sliding_window_mask[:128, :128]
+            ],
+            titles=[
+                'Normal (Full) Attention',
+                'Strided Pattern',
+                'Fixed Pattern',
+                'Sliding Window',
+                'Dilated Sliding Window'
+            ],
+            sample_size=128,
+            colormap=custom_cmap,
+            save_path='mask_comparison_128x128.png'
+        )
+        print("Comparison visualization created!") 
 
     # Printout the sparsity of each mask
     print("\nSparsity of each mask:")
@@ -597,3 +655,17 @@ if __name__ == "__main__":
     print(f"Fixed Mask Sparsity: {fixed_sparsity:.4%}")
     print(f"Sliding Window Mask Sparsity: {sliding_window_sparsity:.4%}")
     print(f"Dilated Sliding Window Mask Sparsity: {dilated_sparsity:.4%}")
+
+    if not args.skip_pattern_print:
+        # Printout the sparsity patterns for each mask
+        print("\nSparsity Patterns:")
+        print("Normal Mask")
+        non_zer_mask_print(normal_mask[:128, :128], ordrer=args.order)
+        print("Strided Mask")
+        non_zer_mask_print(strided_mask[:128, :128], ordrer=args.order)
+        print("Fixed Mask")
+        non_zer_mask_print(fixed_mask[:128, :128], ordrer=args.order)
+        print("Sliding Window Mask")
+        non_zer_mask_print(sliding_window_mask[:128, :128], ordrer=args.order)
+        print("Dilated Sliding Window Mask")
+        non_zer_mask_print(dilated_sliding_window_mask[:128, :128], ordrer=args.order)
