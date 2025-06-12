@@ -221,7 +221,7 @@ There are some assumptions:
 To run the mask resource calculator:
 
 ```bash
-python mask_resource_calculator.py --mask_size <size> --num_multiplications <num> --window_size <window> --stride <stride> [--file]
+python mask_resource_calculator.py --mask_size <size> --num_multiplications <num> --window_size <window> --stride <stride> [--file] [--read_limit <limit>]
 ```
 
 **Arguments:**
@@ -230,13 +230,14 @@ python mask_resource_calculator.py --mask_size <size> --num_multiplications <num
 - `--window_size`: Size of the local attention window for strided/fixed masks (default: 32)
 - `--stride`: Stride for strided attention (default: 32)
 - `--file`: Enable file output for results (optional)
+- `--read_limit`: Limit the sum of unique rows and columns for point calculation (default: 1000)
 
 **Example Usage:**
 
 ```bash
 python mask_resource_calculator.py --mask_size 1024 --num_multiplications 64 --file
 ```
-This command will calculate and print the resource requirements for a normal mask and save the detailed points to a file named `generated/normal_mask_64.txt`.
+This command will calculate and print the Temp Buffer's resource requirements for a normal mask and save the detailed points to a file named `generated/normal_mask_64_read_limit_1024.txt`.
 
 ## Color Mapping
 

@@ -9,7 +9,7 @@ from sparse_transformer_mask import (
     create_fixed_mask_step_by_step
 )
 
-def print_cal_points_resources(mask, num_multiplications, mask_size, fname=None):
+def print_cal_points_resources(mask, num_multiplications, mask_size, read_limit, fname=None):
     """
     Calculates the number of unique rows and columns needed for the first
     num_multiplications non-zero elements encountered in row-major order.
@@ -25,22 +25,56 @@ def print_cal_points_resources(mask, num_multiplications, mask_size, fname=None)
     for i in range(mask_size):
         for j in range(mask_size):
             if mask[i, j] != 0: # Use numpy indexing
-                cal_points.append((i, j)) # Store the point
-                unique_rows.add(i)
-                unique_cols.add(j)
-                operations_count += 1
-                if operations_count == num_multiplications:
-                    # print cal_points one by one with comma separation in a line
+                # check whethere the read_limit could be exceeded in this step
+                temp_unique_rows = unique_rows.copy()
+                temp_unique_cols = unique_cols.copy()
+                temp_unique_rows.add(i)
+                temp_unique_cols.add(j)
+                # if the sum of unique rows and columns exceeds the read_limit
+                if len(temp_unique_rows) + len(temp_unique_cols) >= read_limit:
+                    # print the latest status
+                    # print(f"Exceeding read limit at {clks} with current unique rows: {len(unique_rows)} and columns: {len(unique_cols)}")
+                    # print(f"temp unique rows: {temp_unique_rows}, temp unique cols: {temp_unique_cols}")
                     outstr =(f"at time {clks}: {', '.join(f'({i}, {j})' for i, j in cal_points)}")
                     if fp:
                         fp.write(outstr + '\n')
                     else:
                         print(outstr)
-                    clks += 1
+
+                    # reset the cal_points, unique_rows, unique_cols and operations_count
                     cal_points.clear()
                     unique_rows.clear()
                     unique_cols.clear()
                     operations_count = 0
+                    clks += 1
+
+                    # add thiis point to the cal_points
+                    cal_points.append((i, j))
+                    unique_rows.add(i)
+                    unique_cols.add(j)
+                    operations_count += 1
+
+                # if not exceeding the read_limit, continue processing
+                else:
+                    # Add the current point to unique rows and columns
+                    # and increment the operations count
+                    cal_points.append((i, j))
+                    unique_rows.add(i)
+                    unique_cols.add(j)
+                    operations_count += 1
+
+                    if operations_count == num_multiplications:
+                        # print cal_points one by one with comma separation in a line
+                        outstr =(f"at time {clks}: {', '.join(f'({i}, {j})' for i, j in cal_points)}")
+                        if fp:
+                            fp.write(outstr + '\n')
+                        else:
+                            print(outstr)
+                        clks += 1
+                        cal_points.clear()
+                        unique_rows.clear()
+                        unique_cols.clear()
+                        operations_count = 0
         
     # If fewer non-zero elements than num_multiplications exist in the mask
     if operations_count:
@@ -50,13 +84,14 @@ def print_cal_points_resources(mask, num_multiplications, mask_size, fname=None)
         else:
             print(outstr)
 
-def write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, type = "normal"):
+def write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, read_limit, type = "normal"):
     with open(fname, 'w') as f:
         f.write(f"# Type: {type}\n")
         f.write(f"# Mask Size: {MASK_SIZE}\n")
         f.write(f"# Number of Multiplications: {NUM_MULTIPLICATIONS}\n")
         f.write(f"# Window Size: {WINDOW_SIZE}\n")
         f.write(f"# Stride: {STRIDE}\n")
+        f.write(f"# Read Limit: {read_limit}\n")
 
 def analyze_cal_points(fname):
     """
@@ -118,6 +153,20 @@ def analyze_cal_points(fname):
     print(f"Max Case Row List: {max_case_rows}")
     print(f"Max Case Column List: {max_case_cols}")
 
+def _process_mask_type(mask_name, mask_creation_func, mask_creation_args,
+                       MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_file, args_read_limit):
+    print("\n" + "*" * 50)
+    print(f"--- {mask_name} Mask ---")
+    mask = mask_creation_func(*mask_creation_args)
+    
+    fname = f"generated/{mask_name.lower().replace(' ', '_')}_mask_{NUM_MULTIPLICATIONS}_read_limit_{args_read_limit}.txt" if args_file else None
+    if fname:
+        write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_read_limit, type=mask_name.lower().replace(' ', '_'))
+    
+    print_cal_points_resources(mask, NUM_MULTIPLICATIONS, MASK_SIZE, read_limit=args_read_limit, fname=fname)
+    if fname:
+        analyze_cal_points(fname)
+
 # Main execution block
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Calculate mask resources for sparse matrix multiplications.')
@@ -126,7 +175,7 @@ if __name__ == "__main__":
     parser.add_argument('--window_size', type=int, default=32, help='Size of the local attention window for strided/fixed masks (default: 32)')
     parser.add_argument('--stride', type=int, default=32, help='Stride for strided attention (default: 32)')
     parser.add_argument('--file', action='store_true', help='Enable file output for results')
-
+    parser.add_argument('--read_limit', type=int, default=1000, help='Limit the number of lines read from the file (default: 1000)')
     
     args = parser.parse_args()
 
@@ -139,46 +188,24 @@ if __name__ == "__main__":
     print(f"Mask Size: {MASK_SIZE}")
     print(f"Number of Multiplications: {NUM_MULTIPLICATIONS}")
     print(f"Window Size: {WINDOW_SIZE}")
-    print(f"Stride: {STRIDE}\n")
+    print(f"Stride: {STRIDE}")
+    print(f"Read Limit: {args.read_limit}")
     print(f"file output enabled: {args.file}\n")
 
     print("*" * 50)
     print(f"Calculating worst-case resources for {NUM_MULTIPLICATIONS} multiplications with MASK_SIZE={MASK_SIZE}:\n")
 
     # Normal Mask
-    print("--- Normal Mask ---")
-    normal_mask = create_normal_mask_step_by_step(MASK_SIZE)
+    _process_mask_type("Normal", create_normal_mask_step_by_step, (MASK_SIZE,),
+                       MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.file, args.read_limit)
 
-    # print parameters in the outputfile with '#' as comment
-    fname = f"generated/normal_mask_{NUM_MULTIPLICATIONS}.txt" if args.file else None
-    if fname:
-        write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, type="normal")
-    
-    print_cal_points_resources(normal_mask, NUM_MULTIPLICATIONS, MASK_SIZE, fname = fname)
-    if fname:
-        analyze_cal_points(fname)
+    # Strided Mask
+    _process_mask_type("Strided", create_strided_mask_step_by_step, (MASK_SIZE, WINDOW_SIZE, STRIDE),
+                       MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.file, args.read_limit)
 
-    # do the same for strided and fixed masks
-    print("\n" + "*" * 50)
-    print("--- Strided Mask ---")
-    strided_mask = create_strided_mask_step_by_step(MASK_SIZE, WINDOW_SIZE, STRIDE)
-    fname = f"generated/strided_mask_{NUM_MULTIPLICATIONS}.txt" if args.file else None
-    if fname:
-        write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, type="strided")
-    print_cal_points_resources(strided_mask, NUM_MULTIPLICATIONS, MASK_SIZE, fname = fname)
-    if fname:
-        analyze_cal_points(fname)
-
-    print("\n" + "*" * 50)
-    print("--- Fixed Mask ---")
-    fixed_mask = create_fixed_mask_step_by_step(MASK_SIZE, WINDOW_SIZE)
-    fname = f"generated/fixed_mask_{NUM_MULTIPLICATIONS}.txt" if args.file else None
-    if fname:
-        write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, type="fixed")
-
-    print_cal_points_resources(fixed_mask, NUM_MULTIPLICATIONS, MASK_SIZE, fname = fname)
-    if fname:
-        analyze_cal_points(fname)
+    # Fixed Mask
+    _process_mask_type("Fixed", create_fixed_mask_step_by_step, (MASK_SIZE, WINDOW_SIZE),
+                       MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.file, args.read_limit)
 
     print("\n" + "*" * 50)
     print("Resource calculation completed.")

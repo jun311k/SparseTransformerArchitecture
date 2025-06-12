@@ -219,7 +219,7 @@ options:
 마스크 리소스 계산기를 실행하려면:
 
 ```bash
-python mask_resource_calculator.py --mask_size <size> --num_multiplications <num> --window_size <window> --stride <stride> [--file]
+python mask_resource_calculator.py --mask_size <size> --num_multiplications <num> --window_size <window> --stride <stride> [--file] [--read_limit <limit>]
 ```
 
 **인수:**
@@ -228,13 +228,14 @@ python mask_resource_calculator.py --mask_size <size> --num_multiplications <num
 - `--window_size`: strided/fixed 마스크의 로컬 어텐션 윈도우 크기 (기본값: 32)
 - `--stride`: strided 어텐션의 스트라이드 (기본값: 32)
 - `--file`: 결과 파일 출력 활성화 (선택 사항)
+- `--read_limit`: 포인트 계산을 위한 고유 행 및 열의 합계 제한 (기본값: 1000)
 
 **예시 사용법:**
 
 ```bash
 python mask_resource_calculator.py --mask_size 1024 --num_multiplications 64 --file
 ```
-이 명령은 일반 마스크에 대한 리소스 요구 사항을 계산하고 출력하며, 상세한 포인트를 `generated/normal_mask_64.txt` 파일에 저장합니다.
+이 명령은 일반 마스크에 Temp Buffer의 리소스 요구 사항을 계산하고 `generated/normal_mask_64_read_limit_1024.txt` 파일에 저장합니다.
 
 ## 컬러 매핑
 
