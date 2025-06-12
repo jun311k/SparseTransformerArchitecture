@@ -208,6 +208,36 @@ This command:
 2. Visualizes samples of each mask type
 3. Creates a side-by-side comparison of all five patterns (showing 128x128 samples from each)
 
+### Mask Resource Calculator
+
+The `mask_resource_calculator.py` script is designed to analyze the row of Q and columns of transpose(K) requirements for sparse matrix multiplications based on different attention masks. It calculates the number of unique rows and columns needed for a given number of simultaneous multiplications, helping to understand the "worst-case" spread of indices.
+
+There are some assumptions:
+- MAC array's y dimension is same as dot product counts, i.e., dimenstion or dimensions / # of head
+- Adder is possible to y dimentsion of th array
+- Calculate in row first manner
+- Try to utilize the 100% of MAC array
+
+To run the mask resource calculator:
+
+```bash
+python mask_resource_calculator.py --mask_size <size> --num_multiplications <num> --window_size <window> --stride <stride> [--file]
+```
+
+**Arguments:**
+- `--mask_size`: Size of the square mask matrix (default: 1024)
+- `--num_multiplications`: Total number of simultaneous multiplications (default: 64)
+- `--window_size`: Size of the local attention window for strided/fixed masks (default: 32)
+- `--stride`: Stride for strided attention (default: 32)
+- `--file`: Enable file output for results (optional)
+
+**Example Usage:**
+
+```bash
+python mask_resource_calculator.py --mask_size 1024 --num_multiplications 64 --file
+```
+This command will calculate and print the resource requirements for a normal mask and save the detailed points to a file named `generated/normal_mask_64.txt`.
+
 ## Color Mapping
 
 The visualization uses a custom colormap to distinguish different attention types:

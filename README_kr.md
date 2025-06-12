@@ -206,6 +206,36 @@ options:
 2. 각 마스크 타입의 샘플을 시각화
 3. 다섯 가지 패턴의 128x128 샘플을 나란히 비교하는 그림 생성
 
+### 마스크 리소스 계산기
+
+`mask_resource_calculator.py` 스크립트는 다양한 어텐션 마스크를 기반으로 희소 행렬 곱셈에 필요한 리소스 요구 사항을 분석하도록 설계되었습니다. 이 스크립트는 주어진 동시 곱셈 수에 필요한 고유한 행과 열의 수를 계산하여 "최악의 경우" 인덱스 확산을 이해하는 데 도움을 줍니다.
+
+몇 가지 가정이 있습니다:
+- MAC 배열의 y 차원은 내적 횟수와 동일합니다. 즉, 차원 또는 차원 / 헤드 수
+- Adder는 배열의 y 차원에 가능합니다.
+- 행 우선 방식으로 계산합니다.
+- MAC 배열을 100% 활용하려고 합니다.
+
+마스크 리소스 계산기를 실행하려면:
+
+```bash
+python mask_resource_calculator.py --mask_size <size> --num_multiplications <num> --window_size <window> --stride <stride> [--file]
+```
+
+**인수:**
+- `--mask_size`: 정사각형 마스크 행렬의 크기 (기본값: 1024)
+- `--num_multiplications`: 동시 곱셈의 총 수 (기본값: 64)
+- `--window_size`: strided/fixed 마스크의 로컬 어텐션 윈도우 크기 (기본값: 32)
+- `--stride`: strided 어텐션의 스트라이드 (기본값: 32)
+- `--file`: 결과 파일 출력 활성화 (선택 사항)
+
+**예시 사용법:**
+
+```bash
+python mask_resource_calculator.py --mask_size 1024 --num_multiplications 64 --file
+```
+이 명령은 일반 마스크에 대한 리소스 요구 사항을 계산하고 출력하며, 상세한 포인트를 `generated/normal_mask_64.txt` 파일에 저장합니다.
+
 ## 컬러 매핑
 
 시각화는 다음과 같은 custom colormap을 사용합니다:
