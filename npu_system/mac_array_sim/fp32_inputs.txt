@@ -112,16 +112,15 @@
 9 3F800004 3F800004  // 1.0000004 * 1.0000004 (round down)
 
 // 12. Subnormal Results
-//10 3F000000 00800000  // 0.5 * min normal = subnormal
+//8 3F000000 00800000  // 0.5 * min normal = subnormal
 //10 3F000000 00800001  // 0.5 * min denormal = subnormal
-//10 3E800000 00800000  // 0.25 * min normal = subnormal
-//10 3E800000 00800001  // 0.25 * min denormal = subnormal
-
+//5 3E800000 00800000  // 0.25 * min normal = subnormal
+//5 3E800000 00800001  // 0.25 * min denormal = subnormal
 // 13. Maximum Normalization Shifts
-//11 3F800000 00800000  // 1.0 * min normal (max right shift)
-//11 3F800000 00000001  // 1.0 * min subnormal (max right shift)
-//11 00800000 00800000  // min normal * min normal (max left shift)
-//11 00000001 00000001  // min subnormal * min subnormal (max left shift)
+8 3F800000 00800000  // 1.0 * min normal (max right shift)
+//10 3F800000 00000001  // 1.0 * min subnormal (max right shift)
+5 00800000 00800000  // min normal * min normal (max left shift)
+5 00000001 00000001  // min subnormal * min subnormal (max left shift)
 
 // 14: Denormal * Denormal = Underflow (flush to zero)
 5 00800001 00800001 00000000 # Denormal * Denormal = Underflow (flush to zero)

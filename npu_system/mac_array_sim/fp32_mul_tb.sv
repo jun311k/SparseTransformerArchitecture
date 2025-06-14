@@ -440,6 +440,13 @@ module fp32_mul_tb;
         return result * power;
     endfunction
 
+    function [31:0] real_to_bits;
+        input real val;
+        begin
+            real_to_bits = val; // SystemVerilog에서 암묵적 변환 지원
+        end
+    endfunction
+
     // Function to format real number with sign
     function string format_real_with_sign;
         input real value;
