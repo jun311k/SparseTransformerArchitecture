@@ -1,8 +1,70 @@
-# CIFAR-10용 Sparse Transformer 어텐션 마스크
+# CIFAR-10을 위한 Sparse Transformer Attention Masks
 
-**For English version, see [README.md](README.md).**
+**For English version, please refer to [README.md](README.md).**
 
-이 프로젝트는 CIFAR-10 이미지 데이터(32x32 픽셀 = 1024 토큰)에 대한 sparse(희소) 어텐션 패턴을 구현하고 시각화합니다. Sparse 어텐션 패턴은 모델의 지역 및 전역 의존성 포착 능력을 유지하면서 계산 복잡도와 메모리 사용량을 크게 줄여줍니다.
+이 프로젝트는 CIFAR-10 이미지 데이터(32x32 픽셀 = 1024 토큰)를 위한 sparse attention 패턴을 구현하고 시각화합니다. Sparse attention 패턴은 모델의 지역적 및 전역적 의존성 포착 능력을 유지하면서 계산 복잡도와 메모리 사용량을 크게 줄입니다.
+
+## 스크립트 개요
+
+이 프로젝트는 두 개의 주요 스크립트를 포함합니다:
+
+1. `sparse_transformer_mask.py`: 다양한 어텐션 패턴을 구현하고 시각화
+2. `mask_resource_calculator.py`: 마스크 연산의 리소스 요구사항 분석
+
+### 1. Sparse Transformer Mask 생성기
+
+`sparse_transformer_mask.py` 스크립트는 다양한 어텐션 패턴을 생성하고 시각화하는 데 중점을 둡니다.
+
+```bash
+python sparse_transformer_mask.py --help
+usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] 
+                                 [--sample_size SAMPLE_SIZE] [--full_png] [--no_graphic] 
+                                 [--order {row_first,column_first}] [--skip_pattern_print]
+
+Sparse Transformer Attention Mask Implementation
+
+options:
+  -h, --help            도움말 메시지를 표시하고 종료
+  --size SIZE           마스크 행렬의 크기 (기본값: 1024)
+  --window_size WINDOW_SIZE
+                        로컬 어텐션 윈도우의 크기 (기본값: 32)
+  --stride STRIDE       어텐션 포인트 간의 스트라이드 (기본값: 32)
+  --sample_size SAMPLE_SIZE
+                        시각화할 샘플의 크기 (기본값: 128)
+  --full_png            샘플 대신 전체 크기 PNG 이미지 저장
+  --no_graphic          그래픽을 건너뛰고 스파스 패턴만 출력
+  --order {row_first,column_first}
+                        마스크의 0이 아닌 요소의 순서 (기본값: row_first)
+  --skip_pattern_print  마스크의 0이 아닌 요소 출력 건너뛰기
+```
+
+### 2. 마스크 리소스 계산기
+
+`mask_resource_calculator.py` 스크립트는 마스크 연산의 리소스 요구사항을 분석합니다:
+- 필요한 고유 행과 열의 수
+- 연속된 연산 간의 리소스 변화
+- 최대 리소스 사용 케이스
+
+```bash
+python mask_resource_calculator.py --help
+usage: mask_resource_calculator.py [-h] [--mask_size MASK_SIZE] [--num_multiplications NUM_MULTIPLICATIONS]
+                                   [--window_size WINDOW_SIZE] [--stride STRIDE] [--file] [--read_limit READ_LIMIT]
+
+Calculate mask resources for sparse matrix multiplications.
+
+options:
+  -h, --help            도움말 메시지를 표시하고 종료
+  --mask_size MASK_SIZE
+                        마스크 행렬의 크기 (기본값: 1024)
+  --num_multiplications NUM_MULTIPLICATIONS
+                        동시 곱셈의 총 수 (기본값: 64)
+  --window_size WINDOW_SIZE
+                        strided/fixed 마스크의 로컬 어텐션 윈도우 크기 (기본값: 32)
+  --stride STRIDE       strided 어텐션의 스트라이드 (기본값: 32)
+  --file                결과를 파일로 출력
+  --read_limit READ_LIMIT
+                        파일에서 읽을 라인 수 제한 (기본값: 1000)
+```
 
 ## 어텐션 패턴
 
@@ -60,182 +122,28 @@ Fixed 패턴은 다음과 같습니다:
 
 ![Dilated Sliding Window 패턴](images/dilated_sliding_window_mask_128x128.png)
 
-## 구현 세부사항
+## 파일 출력
 
-이 프로젝트는 하나의 Python 파일로 구성되어 있으며 다음 기능을 제공합니다:
+`mask_resource_calculator.py`를 `--file` 옵션과 함께 실행하면 `generated/` 디렉토리에 두 가지 유형의 파일이 생성됩니다:
 
-- 단계별 마스크 생성 함수
-- 마스크 시각화 도구
-- 희소성 계산 및 통계
-- 다양한 어텐션 패턴의 나란히 비교 시각화
+1. 계산 포인트 파일 (`*_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}.txt`):
+   - 각 시간 단계의 계산 포인트 포함
+   - 마스크 생성에 사용된 파라미터 포함
+   - 형식: `generated/{mask_type}_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}.txt`
 
-## 사용법
+2. 분석 파일 (`*_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}_analysis.txt`):
+   - 계산 포인트에 대한 상세 분석 포함
+   - 최대 케이스 정보와 변화 분석 포함
+   - 형식: `generated/{mask_type}_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}_analysis.txt`
 
-### 어텐션 마스크 생성
-
-```python
-from sparse_transformer_mask import (
-    create_normal_mask_step_by_step,
-    create_strided_mask_step_by_step,
-    create_fixed_mask_step_by_step,
-    create_sliding_window_mask_step_by_step,
-    create_dilated_sliding_window_mask_step_by_step
-)
-
-# 일반(Full) 어텐션 마스크 생성
-normal_mask = create_normal_mask_step_by_step(size=1024)
-
-# Strided 마스크 생성
-strided_mask = create_strided_mask_step_by_step(size=1024, window_size=32, stride=32)
-
-# Fixed 마스크 생성
-fixed_mask = create_fixed_mask_step_by_step(size=1024, window_size=32)
-
-# Sliding Window 마스크 생성
-sliding_window_mask = create_sliding_window_mask_step_by_step(size=1024, window_size=32)
-
-# Dilated Sliding Window 마스크 생성
-dilated_sliding_window_mask = create_dilated_sliding_window_mask_step_by_step(size=1024, window_size=32, dilation=2)
-```
-
-#### 1024 토큰의 경우에 대한 Sparsity 정보
-```
-Sparsity of each mask:
-Normal Mask Sparsity: 49.9512%
-Strided Mask Sparsity: 95.4086%
-Fixed Mask Sparsity: 96.8750%
-Sliding Window Mask Sparsity: 96.8033%
-Dilated Sliding Window Mask Sparsity: 96.8292%
-```
-
-### 바이너리 마스크로 변환
-
-생성된 마스크는 어텐션 타입을 구분하기 위해 1, 2, 3 값을 가지지만, 실제 트랜스포머 모델에서는 0과 1로만 구성된 바이너리 마스크로 변환해야 합니다:
-
-```python
-import numpy as np
-from sparse_transformer_mask import convert_to_binary_mask
-
-# 바이너리 마스크로 변환 (0이 아닌 값은 모두 1)
-binary_strided_mask = convert_to_binary_mask(strided_mask)
-binary_fixed_mask = convert_to_binary_mask(fixed_mask)
-
-# 바이너리 마스크 희소성 확인
-binary_sparsity = 1.0 - np.count_nonzero(binary_strided_mask) / binary_strided_mask.size
-print(f"Binary mask sparsity: {binary_sparsity:.4%}")
-```
-
-### 마스크 시각화
-
-```python
-from sparse_transformer_mask import visualize_mask_sample
-import matplotlib.pyplot as plt
-
-# 마스크 시각화용 컬러맵 설정
-custom_cmap = plt.cm.colors.ListedColormap(['lightgray', 'darkblue', 'royalblue', 'skyblue'])
-
-# 64x64 샘플 시각화
-visualize_mask_sample(
-    mask=strided_mask,
-    title='Strided Pattern Mask',
-    sample_size=64,
-    colormap=custom_cmap,
-    save_path='strided_mask_64x64.png'
-)
-```
-
-### 여러 어텐션 패턴 비교 시각화
-
-```python
-from sparse_transformer_mask import visualize_mask_comparison
-
-# 다섯 가지 어텐션 패턴을 나란히 비교 (각각 128x128 샘플)
-visualize_mask_comparison(
-    masks=[
-        normal_mask[:128, :128],
-        strided_mask[:128, :128],
-        fixed_mask[:128, :128],
-        sliding_window_mask[:128, :128],
-        dilated_sliding_window_mask[:128, :128]
-    ],
-    titles=[
-        'Normal (Full) Attention',
-        'Strided Pattern',
-        'Fixed Pattern',
-        'Sliding Window',
-        'Dilated Sliding Window'
-    ],
-    sample_size=128,
-    colormap=custom_cmap,
-    save_path='mask_comparison_128x128.png'
-)
-```
-
-![모든 패턴 비교](images/mask_comparison_128x128.png)
-
-### 스크립트 직접 실행
-
+예시:
 ```bash
-python sparse_transformer_mask.py
+# 어텐션 패턴 생성 및 시각화
+python sparse_transformer_mask.py --size 1024 --window_size 32
+
+# 리소스 요구사항 분석
+python mask_resource_calculator.py --file --num_multiplications 64 --read_limit 1000
 ```
-또는 다음 옵션 참조
-
-```bash
-% python sparse_transformer_mask.py --help                           
-usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] [--sample_size SAMPLE_SIZE] [--full_png] [--no_graphic] [--order {row_first,column_first}] [--skip_pattern_print]
-
-Sparse Transformer Attention Mask Implementation
-
-options:
-  -h, --help            show this help message and exit
-  --size SIZE           Size of the square mask matrix (default: 1024)
-  --window_size WINDOW_SIZE
-                        Size of the local attention window (default: 32)
-  --stride STRIDE       Stride between attention points (default: 32)
-  --sample_size SAMPLE_SIZE
-                        시각화할 샘플의 크기 (기본값: 128)
-  --full_png            샘플 대신 전체 크기 PNG 이미지 저장
-  --no_graphic          그래픽을 건너뛰고 희소성 패턴만 출력
-  --order {row_first,column_first}
-                        마스크의 0이 아닌 요소 순서 (기본값: row_first)
-  --skip_pattern_print  마스크의 0이 아닌 요소 출력 건너뛰기
-```
-
-이 명령은 다음을 수행합니다:
-1. Normal, Strided, Fixed, Sliding Window, Dilated Sliding Window 마스크(모두 1024x1024)를 생성
-2. 각 마스크 타입의 샘플을 시각화
-3. 다섯 가지 패턴의 128x128 샘플을 나란히 비교하는 그림 생성
-
-### 마스크 리소스 계산기
-
-`mask_resource_calculator.py` 스크립트는 다양한 어텐션 마스크를 기반으로 희소 행렬 곱셈에 필요한 리소스 요구 사항을 분석하도록 설계되었습니다. 이 스크립트는 주어진 동시 곱셈 수에 필요한 고유한 행과 열의 수를 계산하여 "최악의 경우" 인덱스 확산을 이해하는 데 도움을 줍니다.
-
-몇 가지 가정이 있습니다:
-- MAC 배열의 y 차원은 내적 횟수와 동일합니다. 즉, 차원 또는 차원 / 헤드 수
-- Adder는 배열의 y 차원에 가능합니다.
-- 행 우선 방식으로 계산합니다.
-- MAC 배열을 100% 활용하려고 합니다.
-
-마스크 리소스 계산기를 실행하려면:
-
-```bash
-python mask_resource_calculator.py --mask_size <size> --num_multiplications <num> --window_size <window> --stride <stride> [--file] [--read_limit <limit>]
-```
-
-**인수:**
-- `--mask_size`: 정사각형 마스크 행렬의 크기 (기본값: 1024)
-- `--num_multiplications`: 동시 곱셈의 총 수 (기본값: 64)
-- `--window_size`: strided/fixed 마스크의 로컬 어텐션 윈도우 크기 (기본값: 32)
-- `--stride`: strided 어텐션의 스트라이드 (기본값: 32)
-- `--file`: 결과 파일 출력 활성화 (선택 사항)
-- `--read_limit`: 포인트 계산을 위한 고유 행 및 열의 합계 제한 (기본값: 1000)
-
-**예시 사용법:**
-
-```bash
-python mask_resource_calculator.py --mask_size 1024 --num_multiplications 64 --file
-```
-이 명령은 일반 마스크에 Temp Buffer의 리소스 요구 사항을 계산하고 `generated/normal_mask_64_read_limit_1024.txt` 파일에 저장합니다.
 
 ## 컬러 매핑
 

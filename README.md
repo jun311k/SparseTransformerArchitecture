@@ -4,6 +4,68 @@
 
 This project implements and visualizes sparse attention patterns for CIFAR-10 image data (32x32 pixels = 1024 tokens). Sparse attention patterns significantly reduce computational complexity and memory usage while maintaining the model's ability to capture local and global dependencies.
 
+## Scripts Overview
+
+This project contains two main scripts:
+
+1. `sparse_transformer_mask.py`: Implements and visualizes different attention patterns
+2. `mask_resource_calculator.py`: Analyzes resource requirements for mask operations
+
+### 1. Sparse Transformer Mask Generator
+
+The `sparse_transformer_mask.py` script focuses on generating and visualizing different attention patterns.
+
+```bash
+python sparse_transformer_mask.py --help
+usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] 
+                                 [--sample_size SAMPLE_SIZE] [--full_png] [--no_graphic] 
+                                 [--order {row_first,column_first}] [--skip_pattern_print]
+
+Sparse Transformer Attention Mask Implementation
+
+options:
+  -h, --help            show this help message and exit
+  --size SIZE           Size of the square mask matrix (default: 1024)
+  --window_size WINDOW_SIZE
+                        Size of the local attention window (default: 32)
+  --stride STRIDE       Stride between attention points (default: 32)
+  --sample_size SAMPLE_SIZE
+                        Size of the sample to visualize (default: 128)
+  --full_png            Save full-size PNG images instead of samples
+  --no_graphic          Bypass graphics and only print sparsity patterns
+  --order {row_first,column_first}
+                        Order of non-zero elements in the mask (default: row_first)
+  --skip_pattern_print  Skip printing non-zero elements of the mask
+```
+
+### 2. Mask Resource Calculator
+
+The `mask_resource_calculator.py` script analyzes the resource requirements for mask operations, including:
+- Number of unique rows and columns needed
+- Changes in required resources between consecutive operations
+- Maximum resource usage cases
+
+```bash
+python mask_resource_calculator.py --help
+usage: mask_resource_calculator.py [-h] [--mask_size MASK_SIZE] [--num_multiplications NUM_MULTIPLICATIONS]
+                                   [--window_size WINDOW_SIZE] [--stride STRIDE] [--file] [--read_limit READ_LIMIT]
+
+Calculate mask resources for sparse matrix multiplications.
+
+options:
+  -h, --help            show this help message and exit
+  --mask_size MASK_SIZE
+                        Size of the square mask matrix (default: 1024)
+  --num_multiplications NUM_MULTIPLICATIONS
+                        Total number of simultaneous multiplications (default: 64)
+  --window_size WINDOW_SIZE
+                        Size of the local attention window for strided/fixed masks (default: 32)
+  --stride STRIDE       Stride for strided attention (default: 32)
+  --file                Enable file output for results
+  --read_limit READ_LIMIT
+                        Limit the number of lines read from the file (default: 1000)
+```
+
 ## Attention Patterns
 
 Five types of attention patterns are implemented:
@@ -178,35 +240,53 @@ visualize_mask_comparison(
 ### Running the Script Directly
 
 ```bash
-python sparse_transformer_mask.py
+python mask_resource_calculator.py
 ```
 or follow this options
 
 ```bash
-% python sparse_transformer_mask.py --help                           
-usage: sparse_transformer_mask.py [-h] [--size SIZE] [--window_size WINDOW_SIZE] [--stride STRIDE] [--sample_size SAMPLE_SIZE] [--full_png] [--no_graphic] [--order {row_first,column_first}] [--skip_pattern_print]
+% python mask_resource_calculator.py --help                           
+usage: mask_resource_calculator.py [-h] [--mask_size MASK_SIZE] [--num_multiplications NUM_MULTIPLICATIONS]
+                                   [--window_size WINDOW_SIZE] [--stride STRIDE] [--file] [--read_limit READ_LIMIT]
 
-Sparse Transformer Attention Mask Implementation
+Calculate mask resources for sparse matrix multiplications.
 
 options:
   -h, --help            show this help message and exit
-  --size SIZE           Size of the square mask matrix (default: 1024)
+  --mask_size MASK_SIZE
+                        Size of the square mask matrix (default: 1024)
+  --num_multiplications NUM_MULTIPLICATIONS
+                        Total number of simultaneous multiplications (default: 64)
   --window_size WINDOW_SIZE
-                        Size of the local attention window (default: 32)
-  --stride STRIDE       Stride between attention points (default: 32)
-  --sample_size SAMPLE_SIZE
-                        Size of the sample to visualize (default: 128)
-  --full_png            Save full-size PNG images instead of samples
-  --no_graphic          Bypass graphics and only print sparsity patterns
-  --order {row_first,column_first}
-                        Order of non-zero elements in the mask (default: row_first)
-  --skip_pattern_print  Skip printing non-zero elements of the mask
+                        Size of the local attention window for strided/fixed masks (default: 32)
+  --stride STRIDE       Stride for strided attention (default: 32)
+  --file                Enable file output for results
+  --read_limit READ_LIMIT
+                        Limit the number of lines read from the file (default: 1000)
 ```
 
-This command:
-1. Generates Normal, Strided, Fixed, Sliding Window, and Dilated Sliding Window pattern masks (all 1024x1024)
-2. Visualizes samples of each mask type
-3. Creates a side-by-side comparison of all five patterns (showing 128x128 samples from each)
+### File Output
+
+When running `mask_resource_calculator.py` with the `--file` option, the script generates two types of files in the `generated/` directory:
+
+1. Calculation Points File (`*_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}.txt`):
+   - Contains the calculation points for each time step
+   - Includes parameters used for mask generation
+   - Format: `generated/{mask_type}_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}.txt`
+
+2. Analysis File (`*_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}_analysis.txt`):
+   - Contains detailed analysis of the calculation points
+   - Includes maximum case information and change analysis
+   - Format: `generated/{mask_type}_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}_analysis.txt`
+
+Example:
+```bash
+# Generate and visualize attention patterns
+python sparse_transformer_mask.py --size 1024 --window_size 32
+
+# Analyze resource requirements
+python mask_resource_calculator.py --file --num_multiplications 64 --read_limit 1000
+```
 
 ### Mask Resource Calculator
 
