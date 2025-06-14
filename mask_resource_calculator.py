@@ -9,7 +9,7 @@ from sparse_transformer_mask import (
     create_fixed_mask_step_by_step
 )
 
-def print_cal_points_resources(mask, num_multiplications, mask_size, read_limit, fname=None):
+def print_cal_points(mask, num_multiplications, mask_size, read_limit, fname=None):
     """
     Calculates the number of unique rows and columns needed for the first
     num_multiplications non-zero elements encountered in row-major order.
@@ -93,7 +93,7 @@ def write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE,
         f.write(f"# Stride: {STRIDE}\n")
         f.write(f"# Read Limit: {read_limit}\n")
 
-def analyze_cal_points(fname):
+def analyze_cal_points(ifname, ofname):
     """
     Analyzes the cal points file to extract unique rows and columns.
     Also analyzes the changes between consecutive indices.
@@ -114,7 +114,7 @@ def analyze_cal_points(fname):
     # Store all points for each time step
     time_points = {}  # {time: [(row, col), ...]}
 
-    with open(fname, 'r') as f:
+    with open(ifname, 'r') as f:
         for line in f:
             # get parameters from the # lines
             if line.startswith('#'):
@@ -170,24 +170,44 @@ def analyze_cal_points(fname):
             max_case_time = time
             max_case_points = current_points
 
-    print("\n--- Analysis Results ---")
-    print(f"File: {fname}")
-    print(f"Total Calculation Points: {cal_count}")
-    print(f"Max Case Time: {max_case_time}")
-    print(f"Unique Rows: {len(max_case_rows)}")
-    print(f"Unique Columns: {len(max_case_cols)}")
-    print(f"Total Unique Indices (Rows + Columns): {max_row_and_col}")
-    print(f"Max Case Row List: {max_case_rows}")
-    print(f"Max Case Column List: {max_case_cols}")
+    # Prepare analysis results
+    analysis_results = [
+        "\n",
+        "--- Analysis Results ---",
+        f"Input File: {ifname}",
+        f"Total Calculation Points: {cal_count}",
+        f"Max Case Time: {max_case_time}",
+        f"Unique Rows: {len(max_case_rows)}",
+        f"Unique Columns: {len(max_case_cols)}",
+        f"Total Unique Indices (Rows + Columns): {max_row_and_col}",
+        f"Max Case Row List: {max_case_rows}",
+        f"Max Case Column List: {max_case_cols}",
+        "\n",
+        "\n",
+        "--- Change Analysis ---",
+        f"Max Row Changes at time {max_row_changes['time']}: {max_row_changes['count']} new rows",
+        f"New Rows: {sorted(list(max_row_changes['rows']))}",
+        "\n",
+        f"Max Column Changes at time {max_col_changes['time']}: {max_col_changes['count']} new columns",
+        f"New Columns: {sorted(list(max_col_changes['cols']))}",
+        "\n",
+        f"Max Total Changes at time {max_total_changes['time']}: {max_total_changes['count']} total changes",
+        f"New Rows: {sorted(list(max_total_changes['rows']))}",
+        f"New Columns: {sorted(list(max_total_changes['cols']))}"
+    ]
 
-    print("\n--- Change Analysis ---")
-    print(f"Max Row Changes at time {max_row_changes['time']}: {max_row_changes['count']} new rows")
-    print(f"New Rows: {sorted(list(max_row_changes['rows']))}")
-    print(f"\nMax Column Changes at time {max_col_changes['time']}: {max_col_changes['count']} new columns")
-    print(f"New Columns: {sorted(list(max_col_changes['cols']))}")
-    print(f"\nMax Total Changes at time {max_total_changes['time']}: {max_total_changes['count']} total changes")
-    print(f"New Rows: {sorted(list(max_total_changes['rows']))}")
-    print(f"New Columns: {sorted(list(max_total_changes['cols']))}")
+    # open a file with prefix from the fname
+    output_fp = open(ofname, 'w')
+
+    # Print to screen and write to file
+    for line in analysis_results:
+        print(line)
+        output_fp.write(line + '\n')
+    print(f"\nAnalysis results have been saved to: {ofname}")
+
+    output_fp.close()
+
+
 
 def _process_mask_type(mask_name, mask_creation_func, mask_creation_args,
                        MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_file, args_read_limit):
@@ -195,13 +215,15 @@ def _process_mask_type(mask_name, mask_creation_func, mask_creation_args,
     print(f"--- {mask_name} Mask ---")
     mask = mask_creation_func(*mask_creation_args)
     
-    fname = f"generated/{mask_name.lower().replace(' ', '_')}_mask_{NUM_MULTIPLICATIONS}_read_limit_{args_read_limit}.txt" if args_file else None
-    if fname:
-        write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_read_limit, type=mask_name.lower().replace(' ', '_'))
+    points_filename = f"generated/{mask_name.lower().replace(' ', '_')}_mask_{NUM_MULTIPLICATIONS}_read_limit_{args_read_limit}.txt" if args_file else None
+    analysis_filename = points_filename.replace('.txt', '_analysis.txt') if args_file else None
+
+    if points_filename:
+        write_parameters_to_file(points_filename, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_read_limit, type=mask_name.lower().replace(' ', '_'))
     
-    print_cal_points_resources(mask, NUM_MULTIPLICATIONS, MASK_SIZE, read_limit=args_read_limit, fname=fname)
-    if fname:
-        analyze_cal_points(fname)
+    print_cal_points(mask, NUM_MULTIPLICATIONS, MASK_SIZE, read_limit=args_read_limit, fname=points_filename)
+    if points_filename:
+        analyze_cal_points(points_filename,  analysis_filename)
 
 # Main execution block
 if __name__ == "__main__":
