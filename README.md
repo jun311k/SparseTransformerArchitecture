@@ -1,8 +1,8 @@
-# Sparse Transformer Attention Masks for CIFAR-10
+# Sparse Transformer Attention Masks
+
+This project implements and visualizes sparse attention patterns for transformer models. Sparse attention patterns significantly reduce computational complexity and memory usage while maintaining the model's ability to capture both local and global dependencies. While CIFAR-10 (32x32 pixels = 1024 tokens) is used as an example, the implementation is general and can be applied to various sequence lengths and tasks.
 
 **한국어 버전은 [README_kr.md](README_kr.md)를 참고하세요.**
-
-This project implements and visualizes sparse attention patterns for CIFAR-10 image data (32x32 pixels = 1024 tokens). Sparse attention patterns significantly reduce computational complexity and memory usage while maintaining the model's ability to capture local and global dependencies.
 
 ## Scripts Overview
 
@@ -48,7 +48,8 @@ The `mask_resource_calculator.py` script analyzes the resource requirements for 
 ```bash
 python mask_resource_calculator.py --help
 usage: mask_resource_calculator.py [-h] [--mask_size MASK_SIZE] [--num_multiplications NUM_MULTIPLICATIONS]
-                                   [--window_size WINDOW_SIZE] [--stride STRIDE] [--file] [--read_limit READ_LIMIT]
+                                   [--window_size WINDOW_SIZE] [--stride STRIDE] [--read_limit READ_LIMIT]
+                                   [--zigzag]
 
 Calculate mask resources for sparse matrix multiplications.
 
@@ -61,10 +62,16 @@ options:
   --window_size WINDOW_SIZE
                         Size of the local attention window for strided/fixed masks (default: 32)
   --stride STRIDE       Stride for strided attention (default: 32)
-  --file                Enable file output for results
   --read_limit READ_LIMIT
                         Limit the number of lines read from the file (default: 1000)
+  --zigzag             Enable zigzag pattern for column sorting in odd rows (default: False)
 ```
+
+The script generates two types of files for each mask type in the `generated` directory:
+1. `{mask_type}_mask_{num_multiplications}_read_limit_{read_limit}[_zigzag].txt`: Contains the calculation points
+2. `{mask_type}_mask_{num_multiplications}_read_limit_{read_limit}[_zigzag]_analysis.txt`: Contains the analysis results
+
+The `_zigzag` suffix is added to filenames when the zigzag pattern is enabled.
 
 ## Attention Patterns
 
@@ -170,8 +177,6 @@ Sliding Window Mask Sparsity: 96.8033%
 Dilated Sliding Window Mask Sparsity: 96.8292%
 ```
 
-
-
 ### Converting to Binary Masks
 
 The generated masks have values 1, 2, and 3 to distinguish attention types, but for use in actual transformer models, they should be converted to binary masks (consisting only of 0s and 1s):
@@ -247,102 +252,10 @@ or follow this options
 ```bash
 % python mask_resource_calculator.py --help                           
 usage: mask_resource_calculator.py [-h] [--mask_size MASK_SIZE] [--num_multiplications NUM_MULTIPLICATIONS]
-                                   [--window_size WINDOW_SIZE] [--stride STRIDE] [--file] [--read_limit READ_LIMIT]
-
-Calculate mask resources for sparse matrix multiplications.
-
-options:
-  -h, --help            show this help message and exit
-  --mask_size MASK_SIZE
-                        Size of the square mask matrix (default: 1024)
-  --num_multiplications NUM_MULTIPLICATIONS
-                        Total number of simultaneous multiplications (default: 64)
-  --window_size WINDOW_SIZE
-                        Size of the local attention window for strided/fixed masks (default: 32)
-  --stride STRIDE       Stride for strided attention (default: 32)
-  --file                Enable file output for results
-  --read_limit READ_LIMIT
-                        Limit the number of lines read from the file (default: 1000)
+                                   [--window_size WINDOW_SIZE] [--stride STRIDE] [--read_limit READ_LIMIT]
+                                   [--zigzag]
 ```
 
-### File Output
+## License
 
-When running `mask_resource_calculator.py` with the `--file` option, the script generates two types of files in the `generated/` directory:
-
-1. Calculation Points File (`*_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}.txt`):
-   - Contains the calculation points for each time step
-   - Includes parameters used for mask generation
-   - Format: `generated/{mask_type}_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}.txt`
-
-2. Analysis File (`*_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}_analysis.txt`):
-   - Contains detailed analysis of the calculation points
-   - Includes maximum case information and change analysis
-   - Format: `generated/{mask_type}_mask_{NUM_MULTIPLICATIONS}_read_limit_{READ_LIMIT}_analysis.txt`
-
-Example:
-```bash
-# Generate and visualize attention patterns
-python sparse_transformer_mask.py --size 1024 --window_size 32
-
-# Analyze resource requirements
-python mask_resource_calculator.py --file --num_multiplications 64 --read_limit 1000
-```
-
-### Mask Resource Calculator
-
-The `mask_resource_calculator.py` script is designed to analyze the row of Q and columns of transpose(K) requirements for sparse matrix multiplications based on different attention masks. It calculates the number of unique rows and columns needed for a given number of simultaneous multiplications, helping to understand the "worst-case" spread of indices.
-
-There are some assumptions:
-- MAC array's y dimension is same as dot product counts, i.e., dimenstion or dimensions / # of head
-- Adder is possible to y dimentsion of th array
-- Calculate in row first manner
-- Try to utilize the 100% of MAC array
-
-To run the mask resource calculator:
-
-```bash
-python mask_resource_calculator.py --mask_size <size> --num_multiplications <num> --window_size <window> --stride <stride> [--file] [--read_limit <limit>]
-```
-
-**Arguments:**
-- `--mask_size`: Size of the square mask matrix (default: 1024)
-- `--num_multiplications`: Total number of simultaneous multiplications (default: 64)
-- `--window_size`: Size of the local attention window for strided/fixed masks (default: 32)
-- `--stride`: Stride for strided attention (default: 32)
-- `--file`: Enable file output for results (optional)
-- `--read_limit`: Limit the sum of unique rows and columns for point calculation (default: 1000)
-
-**Example Usage:**
-
-```bash
-python mask_resource_calculator.py --mask_size 1024 --num_multiplications 64 --file
-```
-This command will calculate and print the Temp Buffer's resource requirements for a normal mask and save the detailed points to a file named `generated/normal_mask_64_read_limit_1024.txt`.
-
-## Color Mapping
-
-The visualization uses a custom colormap to distinguish different attention types:
-- **Gray (value 0)**: No attention (masked out)
-- **Dark blue (value 1)**: Diagonal/self-attention
-- **Royal blue (value 2)**: Local/sliding/dilated attention
-- **Sky blue (value 3)**: Strided/fixed column attention
-
-## Theoretical Efficiency
-
-For a sequence length of 1024 (32x32 CIFAR-10 image):
-
-- **Standard attention**: O(n²) = 1,048,576 operations
-- **Sparse attention** (95% sparsity): O((1-s)·n²) = 52,428 operations
-- **Theoretical speedup**: ~20x
-
-## Requirements
-
-- Python 3.6+
-- NumPy
-- Matplotlib
-
-## References
-
-- [Sparse Transformer (Child et al., 2019)](https://arxiv.org/abs/1904.10509)
-- [Longformer (Beltagy et al., 2020)](https://arxiv.org/abs/2004.05150)
-- [BigBird (Zaheer et al., 2020)](https://arxiv.org/abs/2007.14062)
+This project is licensed under the MIT License - see the LICENSE file for details.

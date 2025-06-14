@@ -9,80 +9,95 @@ from sparse_transformer_mask import (
     create_fixed_mask_step_by_step
 )
 
-def print_cal_points(mask, num_multiplications, mask_size, read_limit, fname=None):
+def print_cal_points(mask, num_multiplications, mask_size, read_limit, fname=None, zigzag=False):
     """
     Calculates the number of unique rows and columns needed for the first
-    num_multiplications non-zero elements encountered in row-major order.
-    This aims to find a 'worst-case' spread of indices for a given N.
-    Also returns the list of these (row, col) points.
+    num_multiplications multiplications, considering the read limit.
+    
+    Args:
+        mask: The attention mask matrix
+        num_multiplications: Number of simultaneous multiplications
+        mask_size: Size of the square mask matrix
+        read_limit: Maximum number of unique rows/columns to read
+        fname: Optional file name to save results
+        zigzag: If True, sort columns in descending order for odd rows (default: False)
     """
-    cal_points = []
-    unique_rows = set()
-    unique_cols = set()
-    operations_count = 0
-    clks = 0
-    fp = open(fname, 'a') if fname else None
-    for i in range(mask_size):
-        for j in range(mask_size):
-            if mask[i, j] != 0: # Use numpy indexing
-                # check whethere the read_limit could be exceeded in this step
-                temp_unique_rows = unique_rows.copy()
-                temp_unique_cols = unique_cols.copy()
-                temp_unique_rows.add(i)
-                temp_unique_cols.add(j)
-                # if the sum of unique rows and columns exceeds the read_limit
-                if len(temp_unique_rows) + len(temp_unique_cols) >= read_limit:
-                    # print the latest status
-                    # print(f"Exceeding read limit at {clks} with current unique rows: {len(unique_rows)} and columns: {len(unique_cols)}")
-                    # print(f"temp unique rows: {temp_unique_rows}, temp unique cols: {temp_unique_cols}")
-                    outstr =(f"at time {clks}: {', '.join(f'({i}, {j})' for i, j in cal_points)}")
-                    if fp:
-                        fp.write(outstr + '\n')
-                    else:
-                        print(outstr)
-
-                    # reset the cal_points, unique_rows, unique_cols and operations_count
-                    cal_points.clear()
-                    unique_rows.clear()
-                    unique_cols.clear()
-                    operations_count = 0
-                    clks += 1
-
-                    # add thiis point to the cal_points
-                    cal_points.append((i, j))
-                    unique_rows.add(i)
-                    unique_cols.add(j)
-                    operations_count += 1
-
-                # if not exceeding the read_limit, continue processing
-                else:
-                    # Add the current point to unique rows and columns
-                    # and increment the operations count
-                    cal_points.append((i, j))
-                    unique_rows.add(i)
-                    unique_cols.add(j)
-                    operations_count += 1
-
-                    if operations_count == num_multiplications:
-                        # print cal_points one by one with comma separation in a line
-                        outstr =(f"at time {clks}: {', '.join(f'({i}, {j})' for i, j in cal_points)}")
-                        if fp:
-                            fp.write(outstr + '\n')
-                        else:
-                            print(outstr)
-                        clks += 1
-                        cal_points.clear()
-                        unique_rows.clear()
-                        unique_cols.clear()
-                        operations_count = 0
+    # Get non-zero elements and sort by row, then by column
+    non_zero = np.nonzero(mask)
+    rows, cols = non_zero
+    
+    # Create a list of (row, col) pairs
+    points = list(zip(rows, cols))
+    
+    # Sort by row first, then by column
+    # For odd rows, sort columns in descending order if zigzag is True
+    points.sort(key=lambda x: (x[0], -x[1] if zigzag and x[0] % 2 == 1 else x[1]))
+    
+    # Open file for writing if fname is provided
+    f = open(fname, 'w') if fname else None
+    
+    try:
+        time_step = 0
+        current_points = []
+        unique_rows = set()
+        unique_cols = set()
         
-    # If fewer non-zero elements than num_multiplications exist in the mask
-    if operations_count:
-        outstr =(f"at time {clks}: {', '.join(f'({i}, {j})' for i, j in cal_points)}")
-        if fp:
-            fp.write(outstr + '\n')
-        else:
-            print(outstr)
+        for row, col in points:
+            current_unique_count = len(unique_rows) + len(unique_cols)
+            
+            # Only check read_limit if we're close to it
+            if current_unique_count >= read_limit - 2:
+                # Check if adding this point would exceed read_limit
+                temp_rows = unique_rows.copy()
+                temp_cols = unique_cols.copy()
+                temp_rows.add(row)
+                temp_cols.add(col)
+                
+                if len(temp_rows) + len(temp_cols) > read_limit:
+                    # Print current batch of points
+                    if current_points:
+                        point_str = f"at time {time_step}: {', '.join(f'({r}, {c})' for r, c in current_points)}"
+                        if f:
+                            f.write(point_str + '\n')
+                        else:
+                            print(point_str)
+                        time_step += 1
+                    
+                    # Reset for next batch
+                    current_points = []
+                    unique_rows = set()
+                    unique_cols = set()
+            
+            # Add current point
+            current_points.append((row, col))
+            unique_rows.add(row)
+            unique_cols.add(col)
+            
+            # If we've reached num_multiplications, print and reset
+            if len(current_points) == num_multiplications:
+                point_str = f"at time {time_step}: {', '.join(f'({r}, {c})' for r, c in current_points)}"
+                if f:
+                    f.write(point_str + '\n')
+                else:
+                    print(point_str)
+                time_step += 1
+                current_points = []
+                unique_rows = set()
+                unique_cols = set()
+        
+        # Print any remaining points
+        if current_points:
+            point_str = f"at time {time_step}: {', '.join(f'({r}, {c})' for r, c in current_points)}"
+            if f:
+                f.write(point_str + '\n')
+            else:
+                print(point_str)
+                
+    finally:
+        if f:
+            f.close()
+    
+    return len(unique_rows), len(unique_cols)
 
 def write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, read_limit, type = "normal"):
     with open(fname, 'w') as f:
@@ -210,33 +225,43 @@ def analyze_cal_points(ifname, ofname):
 
 
 def _process_mask_type(mask_name, mask_creation_func, mask_creation_args,
-                       MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_file, args_read_limit):
+                      MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_read_limit, args_zigzag=False):
     print("\n" + "*" * 50)
     print(f"--- {mask_name} Mask ---")
     mask = mask_creation_func(*mask_creation_args)
     
-    points_filename = f"generated/{mask_name.lower().replace(' ', '_')}_mask_{NUM_MULTIPLICATIONS}_read_limit_{args_read_limit}.txt" if args_file else None
-    analysis_filename = points_filename.replace('.txt', '_analysis.txt') if args_file else None
-
-    if points_filename:
-        write_parameters_to_file(points_filename, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_read_limit, type=mask_name.lower().replace(' ', '_'))
+    # Create base filename
+    base_filename = f"generated/{mask_name.lower().replace(' ', '_')}_mask_{NUM_MULTIPLICATIONS}_read_limit_{args_read_limit}"
     
-    print_cal_points(mask, NUM_MULTIPLICATIONS, MASK_SIZE, read_limit=args_read_limit, fname=points_filename)
-    if points_filename:
-        analyze_cal_points(points_filename,  analysis_filename)
+    # Add _zigzag suffix if zigzag is True
+    if args_zigzag:
+        base_filename += "_zigzag"
+    
+    points_filename = f"{base_filename}.txt"
+    analysis_filename = f"{base_filename}_analysis.txt"
 
-# Main execution block
-if __name__ == "__main__":
+    write_parameters_to_file(points_filename, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_read_limit, type=mask_name.lower().replace(' ', '_'))
+    
+    print_cal_points(mask, NUM_MULTIPLICATIONS, MASK_SIZE, read_limit=args_read_limit, fname=points_filename, zigzag=args_zigzag)
+    analyze_cal_points(points_filename, analysis_filename)
+
+def main():
     parser = argparse.ArgumentParser(description='Calculate mask resources for sparse matrix multiplications.')
-    parser.add_argument('--mask_size', type=int, default=1024, help='Size of the square mask matrix (default: 1024)')
-    parser.add_argument('--num_multiplications', type=int, default=64, help='Total number of simultaneous multiplications (default: 64)')
-    parser.add_argument('--window_size', type=int, default=32, help='Size of the local attention window for strided/fixed masks (default: 32)')
-    parser.add_argument('--stride', type=int, default=32, help='Stride for strided attention (default: 32)')
-    parser.add_argument('--file', action='store_true', help='Enable file output for results')
-    parser.add_argument('--read_limit', type=int, default=1000, help='Limit the number of lines read from the file (default: 1000)')
+    parser.add_argument('--mask_size', type=int, default=1024,
+                        help='Size of the square mask matrix (default: 1024)')
+    parser.add_argument('--num_multiplications', type=int, default=64,
+                        help='Total number of simultaneous multiplications (default: 64)')
+    parser.add_argument('--window_size', type=int, default=32,
+                        help='Size of the local attention window for strided/fixed masks (default: 32)')
+    parser.add_argument('--stride', type=int, default=32,
+                        help='Stride for strided attention (default: 32)')
+    parser.add_argument('--read_limit', type=int, default=1000,
+                        help='Limit the number of lines read from the file (default: 1000)')
+    parser.add_argument('--zigzag', action='store_true',
+                        help='Sort columns in descending order for odd rows (default: False)')
     
     args = parser.parse_args()
-
+    
     MASK_SIZE = args.mask_size
     NUM_MULTIPLICATIONS = args.num_multiplications
     WINDOW_SIZE = args.window_size
@@ -248,23 +273,26 @@ if __name__ == "__main__":
     print(f"Window Size: {WINDOW_SIZE}")
     print(f"Stride: {STRIDE}")
     print(f"Read Limit: {args.read_limit}")
-    print(f"file output enabled: {args.file}\n")
+    print(f"zigzag: {args.zigzag}\n")
 
     print("*" * 50)
     print(f"Calculating worst-case resources for {NUM_MULTIPLICATIONS} multiplications with MASK_SIZE={MASK_SIZE}:\n")
 
     # Normal Mask
     _process_mask_type("Normal", create_normal_mask_step_by_step, (MASK_SIZE,),
-                       MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.file, args.read_limit)
+                      MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.read_limit, args.zigzag)
 
     # Strided Mask
     _process_mask_type("Strided", create_strided_mask_step_by_step, (MASK_SIZE, WINDOW_SIZE, STRIDE),
-                       MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.file, args.read_limit)
+                      MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.read_limit, args.zigzag)
 
     # Fixed Mask
     _process_mask_type("Fixed", create_fixed_mask_step_by_step, (MASK_SIZE, WINDOW_SIZE),
-                       MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.file, args.read_limit)
+                      MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args.read_limit, args.zigzag)
 
     print("\n" + "*" * 50)
     print("Resource calculation completed.")
     print("Check the generated files in the 'generated' directory for detailed results.")
+
+if __name__ == "__main__":
+    main()
