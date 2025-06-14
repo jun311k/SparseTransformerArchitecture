@@ -1,6 +1,6 @@
 # Sparse Transformer Attention Masks
 
-This project implements and visualizes sparse attention patterns for transformer models. Sparse attention patterns significantly reduce computational complexity and memory usage while maintaining the model's ability to capture both local and global dependencies. While CIFAR-10 (32x32 pixels = 1024 tokens) is used as an example, the implementation is general and can be applied to various sequence lengths and tasks.
+This project implements and visualizes sparse attention patterns for transformer models. Sparse attention patterns significantly reduce computational complexity and memory usage while maintaining the model's ability to capture both local and global dependencies. While CIFAR-10 (32x32 RGB images) is used as an example, the implementation is general and can be applied to various sequence lengths and tasks.
 
 **한국어 버전은 [README_kr.md](README_kr.md)를 참고하세요.**
 
