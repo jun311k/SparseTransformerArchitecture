@@ -96,15 +96,24 @@ def write_parameters_to_file(fname, MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE,
 def analyze_cal_points(fname):
     """
     Analyzes the cal points file to extract unique rows and columns.
+    Also analyzes the changes between consecutive indices.
     """
-    rows = set()
-    cols = set()
+    # Track changes between consecutive indices
+    max_row_changes = {'time': 0, 'count': 0, 'rows': set()}
+    max_col_changes = {'time': 0, 'count': 0, 'cols': set()}
+    max_total_changes = {'time': 0, 'count': 0, 'rows': set(), 'cols': set()}
+    
+    # Track overall maximum case
     max_row_and_col = 0
     max_case_rows = None
     max_case_cols = None
     max_case_points = None
     max_case_time = None
     cal_count = 0
+
+    # Store all points for each time step
+    time_points = {}  # {time: [(row, col), ...]}
+
     with open(fname, 'r') as f:
         for line in f:
             # get parameters from the # lines
@@ -114,44 +123,71 @@ def analyze_cal_points(fname):
             elif line.startswith('at time'):
                 cal_count += 1
                 # parse the points
-                # at time 0: (0, 0), (1, 0), (1, 1), (2, 0), (2, 1), (2, 2)
-                # to [(0, 0), (1, 0), (1, 1), (2, 0), (2, 1), (2, 2)]
-                
                 time_str = line.split(':')[0].strip()  # Extract the time part
-                time_val = time_str.split(' ')[-1]  # Get the time value (e.g., '0' from 'at time 0')
-                # remove 'at time 0: ' from the line
+                time_val = int(time_str.split(' ')[-1])  # Get the time value
                 points_string = line.split(': ')[1].strip()
-                # Find all occurrences of (digit, digit)
                 matches = re.findall(r'\((\d+),\s*(\d+)\)', points_string)
-                # Convert matches to a list of integer tuples
                 points_list = [(int(x), int(y)) for x, y in matches]
-                # print(points_list)
-                for point in points_list:
-                    row, col = point
-                    rows.add(row)
-                    cols.add(col)
-                # Update max row and col if this case has more unique indices
-                if max_row_and_col < len(rows) + len(cols):
-                    max_row_and_col = len(rows) + len(cols)
-                    max_case_rows = sorted(rows)
-                    max_case_cols = sorted(cols)
-                    max_case_time = time_val
-                    max_case_points = points_list
-                    
-                # Clear the sets for the next iteration
-                rows.clear()
-                cols.clear()
+                
+                # Store points for this time step
+                time_points[time_val] = points_list
+
+    # Analyze changes between consecutive time steps
+    for time in sorted(time_points.keys()):
+        if time == 0:  # Skip first time step
+            continue
+            
+        # Get points for current and previous time step
+        current_points = time_points[time]
+        prev_points = time_points[time - 1]
+        
+        # Calculate unique rows and columns for current and previous time steps
+        current_rows = {row for row, _ in current_points}
+        current_cols = {col for _, col in current_points}
+        prev_rows = {row for row, _ in prev_points}
+        prev_cols = {col for _, col in prev_points}
+        
+        # Calculate changes
+        new_rows = current_rows - prev_rows
+        new_cols = current_cols - prev_cols
+        total_changes = len(new_rows) + len(new_cols)
+        
+        # Update max changes if current changes are larger
+        if len(new_rows) > max_row_changes['count']:
+            max_row_changes = {'time': time, 'count': len(new_rows), 'rows': new_rows}
+        if len(new_cols) > max_col_changes['count']:
+            max_col_changes = {'time': time, 'count': len(new_cols), 'cols': new_cols}
+        if total_changes > max_total_changes['count']:
+            max_total_changes = {'time': time, 'count': total_changes, 
+                               'rows': new_rows, 'cols': new_cols}
+        
+        # Update max case if current case has more unique indices
+        total_indices = len(current_rows) + len(current_cols)
+        if total_indices > max_row_and_col:
+            max_row_and_col = total_indices
+            max_case_rows = sorted(list(current_rows))
+            max_case_cols = sorted(list(current_cols))
+            max_case_time = time
+            max_case_points = current_points
 
     print("\n--- Analysis Results ---")
     print(f"File: {fname}")
     print(f"Total Calculation Points: {cal_count}")
     print(f"Max Case Time: {max_case_time}")
-    print(f"Unique Rows: {len(rows)}")
-    print(f"Unique Columns: {len(cols)}")
+    print(f"Unique Rows: {len(max_case_rows)}")
+    print(f"Unique Columns: {len(max_case_cols)}")
     print(f"Total Unique Indices (Rows + Columns): {max_row_and_col}")
-    # print(f"Max Case Points: {', '.join(f'({r}, {c})' for r, c in max_case_points)}")
     print(f"Max Case Row List: {max_case_rows}")
     print(f"Max Case Column List: {max_case_cols}")
+
+    print("\n--- Change Analysis ---")
+    print(f"Max Row Changes at time {max_row_changes['time']}: {max_row_changes['count']} new rows")
+    print(f"New Rows: {sorted(list(max_row_changes['rows']))}")
+    print(f"\nMax Column Changes at time {max_col_changes['time']}: {max_col_changes['count']} new columns")
+    print(f"New Columns: {sorted(list(max_col_changes['cols']))}")
+    print(f"\nMax Total Changes at time {max_total_changes['time']}: {max_total_changes['count']} total changes")
+    print(f"New Rows: {sorted(list(max_total_changes['rows']))}")
+    print(f"New Columns: {sorted(list(max_total_changes['cols']))}")
 
 def _process_mask_type(mask_name, mask_creation_func, mask_creation_args,
                        MASK_SIZE, NUM_MULTIPLICATIONS, WINDOW_SIZE, STRIDE, args_file, args_read_limit):
