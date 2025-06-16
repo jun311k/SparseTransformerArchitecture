@@ -478,7 +478,7 @@ class Order(str, Enum):
     ROW_FIRST = 'row_first'
     COLUMN_FIRST = 'column_first'
 
-def non_zer_mask_print(mask, ordrer: Order = Order.ROW_FIRST):
+def non_zero_mask_print(mask, order: Order = Order.ROW_FIRST):
     """
     print(f"Strided Mask: {np.count_nonzero(strided_mask)} non-zero elements")
     print(f"Fixed Mask: {np.count_nonzero(fixed_mask)} non-zero elements")
@@ -490,7 +490,7 @@ def non_zer_mask_print(mask, ordrer: Order = Order.ROW_FIRST):
     """
     non_zero_elements = np.count_nonzero(mask)
     print(f"Mask has {non_zero_elements} non-zero elements")
-    if Order.ROW_FIRST == ordrer:
+    if Order.ROW_FIRST == order:
         # print row(1st dimension) and column(2nd dimension) indices of non-zero elements one by one
         # row first, and then column 
         # for each non-zero element, print row in common and column in next like this
@@ -502,7 +502,7 @@ def non_zer_mask_print(mask, ordrer: Order = Order.ROW_FIRST):
                 print(f"Row {i}: {', '.join(map(str, non_zero_indices))}")
             else:
                 print(f"Row {i}: No non-zero elements")
-    elif Order.COLUMN_FIRST == ordrer:
+    elif Order.COLUMN_FIRST == order:
         # print column(1st dimension) and row(2nd dimension) indices of non-zero elements one by one
         # column first, and then row 
         # for each non-zero element, print column in common and row in next like this
@@ -515,7 +515,7 @@ def non_zer_mask_print(mask, ordrer: Order = Order.ROW_FIRST):
             else:
                 print(f"Column {j}: No non-zero elements")
     else:
-        raise ValueError(f"Unknown order: {ordrer}. Use Order.ROW_FIRST or Order.COLUMN_FIRST.")
+        raise ValueError(f"Unknown order: {order}. Use Order.ROW_FIRST or Order.COLUMN_FIRST.")
 
 # Main function
 if __name__ == "__main__":
@@ -713,12 +713,12 @@ if __name__ == "__main__":
         # Printout the sparsity patterns for each mask
         print("\nSparsity Patterns:")
         print("Normal Mask")
-        non_zer_mask_print(normal_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
+        non_zero_mask_print(normal_mask[:args.sample_size, :args.sample_size], order=args.order)
         print("Strided Mask")
-        non_zer_mask_print(strided_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
+        non_zero_mask_print(strided_mask[:args.sample_size, :args.sample_size], order=args.order)
         print("Fixed Mask")
-        non_zer_mask_print(fixed_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
+        non_zero_mask_print(fixed_mask[:args.sample_size, :args.sample_size], order=args.order)
         print("Sliding Window Mask")
-        non_zer_mask_print(sliding_window_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
+        non_zero_mask_print(sliding_window_mask[:args.sample_size, :args.sample_size], order=args.order)
         print("Dilated Sliding Window Mask")
-        non_zer_mask_print(dilated_sliding_window_mask[:args.sample_size, :args.sample_size], ordrer=args.order)
+        non_zero_mask_print(dilated_sliding_window_mask[:args.sample_size, :args.sample_size], order=args.order)
